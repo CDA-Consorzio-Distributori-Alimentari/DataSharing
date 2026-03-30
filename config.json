@@ -2,11 +2,10 @@
     "data_sharing_options": [
         {
             "code": "CC001",
-            "name": "CocaCola",
+            "name": "Coca Cola V1",
             "Campo": "TC_Soci_CocaCola_Attivo",
             "file_type": "xml",
             "delivery_method": "ftp",
-            "fields": "TC_Soci_CocaCola_Attivo",
             "xml_mapping": {
                 "WholesalerID": "TC_Soci_CocaCola_Codice",
                 "CodiceCliente": {
@@ -36,7 +35,6 @@
             "Campo": "TC_Soci_CocaCola_In_Chiaro",
             "file_type": "xml",
             "delivery_method": "ftp",
-            "fields": "TC_Soci_CocaCola_In_Chiaro",
             "xml_mapping": {
                 "WholesalerID": "TC_Soci_CocaCola_Codice",
                 "CodiceCliente": {
@@ -63,7 +61,6 @@
             "Campo": "TC_Soci_Campari_Attivo",
             "file_type": "xml",
             "delivery_method": "ftp",
-            "fields": "TC_Soci_Campari_Attivo",
             "ftp_config": {
                 "host": "ftp.example.com",
                 "user": "ftp_user",
@@ -82,7 +79,6 @@
             "Campo": "TC_Soci_DIAGEO_Attivo",
             "file_type": "csv",
             "delivery_method": "nasshare",
-            "fields": "TC_Soci_DIAGEO_Attivo",
             "nasshare_config": {
                 "deposit_address": "\\nas\\default"
             },
@@ -94,7 +90,6 @@
             "Campo": "TC_Soci_RedBull_Attivo",
             "file_type": "csv",
             "delivery_method": "nasshare",
-            "fields": "TC_Soci_RedBull_Attivo",
             "nasshare_config": {
                 "deposit_address": "\\nas\\default"
             },
@@ -106,7 +101,6 @@
             "Campo": "TC_Soci_Martini_Attivo",
             "file_type": "csv",
             "delivery_method": "nasshare",
-            "fields": "TC_Soci_Martini_Attivo",
             "nasshare_config": {
                 "deposit_address": "\\nas\\default"
             },

@@ -163,9 +163,6 @@ class DataSharing:
             if socio_data is None or socio_data.empty:
                 self.log.error("Il socio non è attivo o non esiste. Uscita.")
                 return
-
-
-            
             campo_value = socio_data[config_ds.campo].iloc[0] if config_ds.campo in socio_data.columns else 0
 
             if campo_value == 1:

@@ -24,9 +24,7 @@
                 <OutletNumber>                   
                     <xsl:value-of select="normalize-space(CodiceCliente)"/>                    
                 </OutletNumber>
-                <Name1>
-                    OSCURATO
-                </Name1>
+                <Name1>OSCURATO</Name1>
                 <Name2 xsi:nil="true"/>
                 <ContactPerson xsi:nil="true"/>
                 <Address1 xsi:nil="true"/>
@@ -54,9 +52,7 @@
                 <OutletNumber>
                     <xsl:value-of select="normalize-space(CodiceCliente)"/>
                 </OutletNumber>
-                <Name1>
-                    OSCURATO
-                </Name1>
+                <Name1>OSCURATO</Name1>
                 <Name2 xsi:nil="true"/>
                 <ContactPerson xsi:nil="true"/>
                 <Address1 xsi:nil="true"/>

@@ -21,7 +21,6 @@ class Option:
         self.code = option_data.get("code")
         self.campo = option_data.get("Campo")      
         self.delivery_method = option_data.get("delivery_method")
-        self.fields = option_data.get("fields")
         self.naming_convention = option_data.get("naming_convention")
         self.query_file = option_data.get("query_file")
         self.xslt_template = option_data.get("xslt_template")

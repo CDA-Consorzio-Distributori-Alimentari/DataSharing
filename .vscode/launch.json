@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Debug DataSharing with parameters",
+            "name": "Python: Debug DataSharing CC002",
             "type": "debugpy",
             "request": "launch",
             "python": "C:\\Program Files\\Python313\\python.exe",
@@ -14,12 +14,12 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Python: Debug DataSharing without parameters",
+            "name": "Python: Debug DataSharing CC001",
             "type": "debugpy",
             "request": "launch",
             "python": "C:\\Program Files\\Python313\\python.exe",
             "program": "main.py",
-            "args": [],
+            "args": ["--period", "202512", "--datasharing", "CC001", "--socio", "2"],
             "console": "integratedTerminal"
         }
     ]

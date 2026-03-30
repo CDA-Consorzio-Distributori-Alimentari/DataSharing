@@ -3,7 +3,7 @@ from data_sharing_config import Option
 from log_manager import LogManager
 from datetime import datetime
 
-from .db_manager import DBManager
+from database import DBManager
 from .output_manager import OutputManager
 from .ftp_manager import FTPManager
 from .mail_manager import MailManager

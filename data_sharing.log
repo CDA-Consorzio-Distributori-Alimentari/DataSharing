@@ -1,75 +1,19 @@
-2026-03-27 11:12:50,119 - INFO - Avvio elaborazione per socio 7, periodo 202512, data sharing CC002.
-2026-03-27 11:12:55,698 - INFO - Raw database results fetched for socio 7: (1669, 20)
-2026-03-27 11:13:25,335 - INFO - Avvio elaborazione per socio 7, periodo 202512, data sharing CC002.
-2026-03-27 11:13:27,676 - INFO - Raw database results fetched for socio 7: (1669, 20)
-2026-03-30 10:53:14,553 - INFO - Avvio elaborazione per socio 7, periodo 202512, data sharing CC002.
-2026-03-30 10:53:39,408 - INFO - Raw database results fetched for socio 7: (1669, 16)
-2026-03-30 10:57:04,666 - INFO - Avvio elaborazione per socio 7, periodo 202512, data sharing CC002.
-2026-03-30 10:57:12,687 - INFO - Raw database results fetched for socio 7: (1669, 16)
-2026-03-30 10:57:13,460 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330105713.xml
-2026-03-30 10:57:13,461 - INFO - Elaborazione completata.
-2026-03-30 10:57:13,461 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330105713.xml
-2026-03-30 11:06:54,928 - INFO - Avvio elaborazione per socio 7, periodo 202512, data sharing CC002.
-2026-03-30 11:07:00,856 - INFO - Raw database results fetched for socio 7: (1669, 17)
-2026-03-30 11:07:01,660 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330110701.xml
-2026-03-30 11:07:01,660 - INFO - Elaborazione completata.
-2026-03-30 11:07:01,660 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330110701.xml
-2026-03-30 11:23:52,750 - INFO - Avvio elaborazione per socio 7, periodo 202512, data sharing CC002.
-2026-03-30 11:23:59,690 - INFO - Raw database results fetched for socio 7: (1669, 18)
-2026-03-30 11:24:00,098 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330112400.xml
-2026-03-30 11:24:00,099 - INFO - Elaborazione completata.
-2026-03-30 11:24:00,099 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330112400.xml
-2026-03-30 11:28:38,337 - INFO - Avvio elaborazione per socio 7, periodo 202512, data sharing CC002.
-2026-03-30 11:28:48,295 - INFO - Raw database results fetched for socio 7: (1669, 18)
-2026-03-30 11:28:48,774 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330112848.xml
-2026-03-30 11:28:48,774 - INFO - Elaborazione completata.
-2026-03-30 11:28:48,774 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330112848.xml
-2026-03-30 11:46:53,183 - INFO - Avvio elaborazione per socio 7, periodo 202512, data sharing CC002.
-2026-03-30 11:47:00,356 - INFO - Raw database results fetched for socio 7: (1669, 18)
-2026-03-30 11:47:00,844 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330114700.xml
-2026-03-30 11:47:00,844 - INFO - Elaborazione completata.
-2026-03-30 11:47:00,844 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330114700.xml
-2026-03-30 11:48:11,161 - INFO - Avvio elaborazione per socio 7, periodo 202512, data sharing CC002.
-2026-03-30 11:48:15,427 - INFO - Raw database results fetched for socio 7: (1669, 18)
-2026-03-30 11:48:15,836 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330114815.xml
-2026-03-30 11:48:15,836 - INFO - Elaborazione completata.
-2026-03-30 11:48:15,837 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330114815.xml
-2026-03-30 11:51:24,842 - INFO - Avvio elaborazione per socio 7, periodo 202512, data sharing CC002.
-2026-03-30 11:51:36,855 - INFO - Raw database results fetched for socio 7: (1669, 18)
-2026-03-30 11:51:37,271 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330115137.xml
-2026-03-30 11:51:37,271 - INFO - Elaborazione completata.
-2026-03-30 11:51:37,271 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330115137.xml
-2026-03-30 12:12:49,773 - INFO - Avvio elaborazione per socio 7, periodo 202512, data sharing CC002.
-2026-03-30 12:12:51,905 - INFO - Raw database results fetched for socio 7: (1669, 18)
-2026-03-30 12:12:52,154 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330121252.xml
-2026-03-30 12:12:52,154 - INFO - Elaborazione completata.
-2026-03-30 12:12:52,155 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330121252.xml
-2026-03-30 12:18:09,842 - INFO - Avvio elaborazione per socio 7, periodo 202512, data sharing CC002.
-2026-03-30 12:18:12,149 - INFO - Raw database results fetched for socio 7: (1669, 18)
-2026-03-30 12:38:18,944 - INFO - Avvio elaborazione per socio 7, periodo 202512, data sharing CC002.
-2026-03-30 12:38:33,552 - INFO - Raw database results fetched for socio 7: (1669, 18)
-2026-03-30 12:38:34,463 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330123834.xml
-2026-03-30 12:38:34,463 - INFO - Elaborazione completata.
-2026-03-30 12:38:34,463 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330123834.xml
-2026-03-30 12:39:38,155 - INFO - Avvio elaborazione per socio 7, periodo 202512, data sharing CC002.
-2026-03-30 12:39:42,162 - INFO - Raw database results fetched for socio 7: (10, 18)
-2026-03-30 12:39:42,238 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330123942.xml
-2026-03-30 12:39:42,238 - INFO - Elaborazione completata.
-2026-03-30 12:39:42,238 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330123942.xml
-2026-03-30 13:37:25,418 - INFO - Avvio elaborazione per socio 7, periodo 202512, data sharing CC002.
-2026-03-30 13:37:39,011 - INFO - Raw database results fetched for socio 7: (1669, 18)
-2026-03-30 13:37:39,843 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330133739.xml
-2026-03-30 13:37:39,843 - INFO - Elaborazione completata.
-2026-03-30 13:37:39,843 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330133739.xml
-2026-03-30 13:39:31,279 - INFO - Avvio elaborazione per socio 7, periodo 202512, data sharing CC002.
-2026-03-30 13:39:36,289 - INFO - Raw database results fetched for socio 7: (3, 18)
-2026-03-30 13:39:36,354 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330133936.xml
-2026-03-30 13:39:36,354 - INFO - Elaborazione completata.
-2026-03-30 13:39:36,354 - INFO - Processed data for socio 7 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaColaV2_2_20260330133936.xml
-2026-03-30 17:45:23,156 - ERROR - Error verifying socio 7: (pyodbc.Error) ('HY104', '[HY104] [Microsoft][ODBC SQL Server Driver]Valore di precisione non valido. (0) (SQLBindParameter)')
-[SQL: SELECT sys.columns.name, sys.types.name AS name_1, sys.columns.is_nullable, sys.columns.max_length, sys.columns.[precision], sys.columns.scale, sys.default_constraints.definition, sys.columns.collation_name, sys.computed_columns.definition AS definition_1, sys.computed_columns.is_persisted, sys.identity_columns.is_identity, CAST(sys.identity_columns.seed_value AS NUMERIC(38, 0)) AS seed_value, CAST(sys.identity_columns.increment_value AS NUMERIC(38, 0)) AS increment_value, CAST(sys.extended_properties.value AS NVARCHAR(max)) AS comment 
-FROM sys.columns JOIN sys.types ON sys.columns.user_type_id = sys.types.user_type_id LEFT OUTER JOIN sys.default_constraints ON sys.default_constraints.object_id = sys.columns.default_object_id AND sys.default_constraints.parent_column_id = sys.columns.column_id LEFT OUTER JOIN sys.computed_columns ON sys.computed_columns.object_id = sys.columns.object_id AND sys.computed_columns.column_id = sys.columns.column_id LEFT OUTER JOIN sys.identity_columns ON sys.identity_columns.object_id = sys.columns.object_id AND sys.identity_columns.column_id = sys.columns.column_id LEFT OUTER JOIN sys.extended_properties ON sys.extended_properties.class = ? AND sys.extended_properties.name = CAST(? AS NVARCHAR(max)) AND sys.columns.object_id = sys.extended_properties.major_id AND sys.columns.column_id = sys.extended_properties.minor_id 
-WHERE sys.columns.object_id = object_id(?) ORDER BY sys.columns.column_id]
-[parameters: (1, 'MS_Description', 'dbo.[TC_Soci]')]
-(Background on this error at: https://sqlalche.me/e/20/dbapi)
-2026-03-30 17:45:23,165 - ERROR - Il socio non è attivo o non esiste. Uscita.
+2026-03-30 18:17:35,390 - INFO - Avvio elaborazione per socio 2, periodo 202512, data sharing CC001.
+2026-03-30 18:17:35,392 - ERROR - Query file not found: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\querysql\cocacola_query.sql
+2026-03-30 18:17:35,392 - INFO - Query file not found: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\querysql\cocacola_query.sql
+2026-03-30 18:19:22,644 - INFO - Avvio elaborazione per socio 2, periodo 202512, data sharing CC001.
+2026-03-30 18:19:22,646 - ERROR - Query file not found: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\querysql\cocacola_query.sql
+2026-03-30 18:19:29,539 - INFO - Query file not found: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\querysql\cocacola_query.sql
+2026-03-30 18:21:50,341 - INFO - Avvio elaborazione per socio 2, periodo 202512, data sharing CC001.
+2026-03-30 18:21:50,342 - ERROR - Query file not found: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\querysql\cocacola_query.sql
+2026-03-30 18:21:51,787 - INFO - Query file not found: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\querysql\cocacola_query.sql
+2026-03-30 18:24:48,365 - INFO - Avvio elaborazione per socio 2, periodo 202512, data sharing CC001.
+2026-03-30 18:25:16,233 - INFO - Raw database results fetched for socio 2: (530, 17)
+2026-03-30 18:25:31,292 - INFO - Processed data for socio 2 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaCola_2_20260330182525.xml
+2026-03-30 18:25:31,293 - INFO - Elaborazione completata.
+2026-03-30 18:25:31,293 - INFO - Processed data for socio 2 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaCola_2_20260330182525.xml
+2026-03-30 18:27:35,821 - INFO - Avvio elaborazione per socio 2, periodo 202512, data sharing CC001.
+2026-03-30 18:27:36,784 - INFO - Raw database results fetched for socio 2: (530, 17)
+2026-03-30 18:27:38,693 - INFO - Processed data for socio 2 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaCola_2_20260330182738.xml
+2026-03-30 18:27:38,693 - INFO - Elaborazione completata.
+2026-03-30 18:27:38,693 - INFO - Processed data for socio 2 in xml mode. File: C:\Users\gabriele.chiarillo.CDA\source\repos\DataSharing\OutPut\xml\CWHS_CodiceSAPCocaCola_2_20260330182738.xml
