@@ -1,0 +1,172 @@
+{
+    "data_sharing_options": [
+        {
+            "code": "CC001",
+            "name": "CocaCola",
+            "Campo": "TC_Soci_CocaCola_Attivo",
+            "file_type": "xml",
+            "delivery_method": "ftp",
+            "fields": "TC_Soci_CocaCola_Attivo",
+            "xml_mapping": {
+                "WholesalerID": "TC_Soci_CocaCola_Codice",
+                "CodiceCliente": {
+                    "fields": ["Clienti_Codice", "Clienti_Codice_Pdc"],
+                    "separator": "_"
+                }
+            },
+            "xml_grouping": {
+                "Sales/Transaction": ["CodiceCliente"]
+            },
+            "parameters": {
+                "DateFrom": "",
+                "DateTo": ""
+            },
+            
+            "ftp_config": {
+                "host": "ftp.example.com",
+                "user": "ftp_user",
+                "password": "ftp_password",
+                "port": 21
+            },
+            "naming_convention": "CWHS_CodiceSAPCocaCola_2_YYYYMMDDhhmmss"
+        },
+        {
+            "code": "CC002",
+            "name": "Coca Cola V2",
+            "Campo": "TC_Soci_CocaCola_In_Chiaro",
+            "file_type": "xml",
+            "delivery_method": "ftp",
+            "fields": "TC_Soci_CocaCola_In_Chiaro",
+            "xml_mapping": {
+                "WholesalerID": "TC_Soci_CocaCola_Codice",
+                "CodiceCliente": {
+                    "fields": ["Clienti_Codice", "Clienti_Codice_Pdc"],
+                    "separator": "_"
+                }
+            },
+            "xml_grouping": {
+                "Sales/Transaction": ["CodiceCliente"]
+            },
+            "ftp_config": {
+                "host": "ftp.example.com",
+                "user": "ftp_user",
+                "password": "ftp_password",
+                "port": 21
+            },
+            
+           
+            "naming_convention": "CWHS_CodiceSAPCocaColaV2_2_YYYYMMDDhhmmss"
+        },
+        {
+            "code": "CA001",
+            "name": "Campari",
+            "Campo": "TC_Soci_Campari_Attivo",
+            "file_type": "xml",
+            "delivery_method": "ftp",
+            "fields": "TC_Soci_Campari_Attivo",
+            "ftp_config": {
+                "host": "ftp.example.com",
+                "user": "ftp_user",
+                "password": "ftp_password",
+                "port": 21
+            },
+            "parameters": {
+                "DateFrom": "",
+                "DateTo": ""
+            },
+            "naming_convention": "CWHS_CodiceSAPCampari_2_YYYYMMDDhhmmss"
+        },
+        {
+            "code": "DI001",
+            "name": "DIAGEO",
+            "Campo": "TC_Soci_DIAGEO_Attivo",
+            "file_type": "csv",
+            "delivery_method": "nasshare",
+            "fields": "TC_Soci_DIAGEO_Attivo",
+            "nasshare_config": {
+                "deposit_address": "\\nas\\default"
+            },
+            "naming_convention": "CWHS_CodiceSAPDIAGEO_2_YYYYMMDDhhmmss"
+        },
+        {
+            "code": "RB001",
+            "name": "RedBull",
+            "Campo": "TC_Soci_RedBull_Attivo",
+            "file_type": "csv",
+            "delivery_method": "nasshare",
+            "fields": "TC_Soci_RedBull_Attivo",
+            "nasshare_config": {
+                "deposit_address": "\\nas\\default"
+            },
+            "naming_convention": "CWHS_CodiceSAPRedBull_2_YYYYMMDDhhmmss"
+        },
+        {
+            "code": "MA001",
+            "name": "Martini",
+            "Campo": "TC_Soci_Martini_Attivo",
+            "file_type": "csv",
+            "delivery_method": "nasshare",
+            "fields": "TC_Soci_Martini_Attivo",
+            "nasshare_config": {
+                "deposit_address": "\\nas\\default"
+            },
+            "naming_convention": "CWHS_CodiceSAPMartini_2_YYYYMMDDhhmmss"
+        }
+    ],
+    "db_path": "data_sharing.db",
+    "ftp_config": {
+        "host": "ftp.example.com",
+        "user": "ftp_user",
+        "password": "ftp_password"
+    },
+    "mail_config": {
+        "smtp_server": "smtp.example.com",
+        "port": 587,
+        "user": "email_user",
+        "password": "email_password"
+    },
+    "connection_string": {
+        "data_source": "DWH",
+        "integrated_security": true,
+        "persist_security_info": false,
+        "pooling": false,
+        "multiple_active_result_sets": false,
+        "encrypt": false,
+        "trust_server_certificate": false,
+        "command_timeout": 0,
+        "database": "cda"
+    },
+    "auto_execution": {
+        "table": "dbo.DataSharingAutoExecution",
+        "status_column": "status",
+        "socio_column": "socio",
+        "period_column": "periodo",
+        "datasharing_column": "datasharing",
+        "timestamp_column": "timestamp",
+        "filename_column": "filename",
+        "message_column": "message",
+        "order_by_column": "periodo",
+        "status_pending": "INS",
+        "status_running": "RUN",
+        "status_ok": "OK",
+        "status_ko": "KO"
+    },
+    "log_file": "data_sharing.log",
+    "output_path": "C:\\Users\\gabriele.chiarillo.CDA\\source\\repos\\DataSharing\\OutPut",
+    "placeholders": {
+        "YYYYMMDDhhmmss": "%Y%m%d%H%M%S",
+        "YYYY-MM-DD": "%Y-%m-%d",
+        "YYYY/MM/DD": "%Y/%m/%d",
+        "DDMMYYYY": "%d%m%Y",
+        "DD-MM-YYYY": "%d-%m-%Y",
+        "DD/MM/YYYY": "%d/%m/%Y",
+        "MMDDYYYY": "%m%d%Y",
+        "MM-DD-YYYY": "%m-%d-%Y",
+        "MM/DD/YYYY": "%m/%d/%Y",
+        "hhmmss": "%H%M%S",
+        "hh:mm:ss": "%H:%M:%S",
+        "hh_mm_ss": "%H_%M_%S",
+        "ss_MM_DD": "%S_%m_%d",
+        "MM_DD_YYYY_hh_mm_ss": "%m_%d_%Y_%H_%M_%S"
+    }
+}

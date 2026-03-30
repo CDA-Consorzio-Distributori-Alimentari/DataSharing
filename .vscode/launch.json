@@ -1,0 +1,26 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Debug DataSharing with parameters",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "C:\\Program Files\\Python313\\python.exe",
+            "program": "main.py",
+            "args": ["--period", "202512", "--datasharing", "CC002", "--socio", "7"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Debug DataSharing without parameters",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "C:\\Program Files\\Python313\\python.exe",
+            "program": "main.py",
+            "args": [],
+            "console": "integratedTerminal"
+        }
+    ]
+}
