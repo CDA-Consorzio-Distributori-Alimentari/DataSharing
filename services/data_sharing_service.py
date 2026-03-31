@@ -1,4 +1,4 @@
-from data_sharing_config import DataSharingOption, Option
+from services.data_sharing_config import DataSharingOption, Option
 from managers.data_owner_manager import DataSharingOwnerManager
 
 

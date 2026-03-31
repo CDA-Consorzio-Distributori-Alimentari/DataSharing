@@ -13,13 +13,14 @@ class DataSharingOption:
 
         for item in items:
             self.options.add(Option(item))
-            
+
+
 class Option:
     def __init__(self, option_data):
         self.name = option_data.get("name")
-        self.file_type = option_data.get("file_type") 
+        self.file_type = option_data.get("file_type")
         self.code = option_data.get("code")
-        self.campo = option_data.get("Campo")      
+        self.campo = option_data.get("Campo")
         self.delivery_method = option_data.get("delivery_method")
         self.naming_convention = option_data.get("naming_convention")
         self.query_file = option_data.get("query_file")
@@ -28,7 +29,7 @@ class Option:
         self.xml_grouping = option_data.get("xml_grouping", {})
         self.xml_structure = option_data.get("xml_structure", {})
         if self.file_type == "xml":
-            self.parameters =  Parameters(option_data)
+            self.parameters = Parameters(option_data)
         # Initialize specific configuration based on delivery_method
         if self.delivery_method == "ftp":
             self.config = FTPDataSharingOption(option_data)
@@ -37,7 +38,8 @@ class Option:
         elif self.delivery_method == "nasshare":
             self.config = NASShareDataSharingOption(option_data)
         else:
-            self.config = GenericDataSharingOption(option_data)  
+            self.config = GenericDataSharingOption(option_data)
+
 
 class Parameters:
     def __init__(self, config_data):
@@ -63,11 +65,12 @@ class Parameters:
             self.add(Parameter(name))
             self.parameters[name].value = value
 
+
 class Parameter:
     def __init__(self, name):
         self.name = name
         self.value = None
-        
+
 
 class FTPDataSharingOption:
     def __init__(self, option_data):
@@ -77,6 +80,7 @@ class FTPDataSharingOption:
         self.password = ftp_config.get("password")
         self.port = ftp_config.get("port")
 
+
 class AzureStorageDataSharingOption:
     def __init__(self, option_data):
         azure_storage_config = option_data.get("azure_storage_config", {})
@@ -84,18 +88,13 @@ class AzureStorageDataSharingOption:
         self.expiration_date = azure_storage_config.get("expiration_date")
         self.permissions = azure_storage_config.get("permissions")
 
+
 class NASShareDataSharingOption:
     def __init__(self, option_data):
         nasshare_config = option_data.get("nasshare_config", {})
         self.deposit_address = nasshare_config.get("deposit_address")
 
+
 class GenericDataSharingOption:
     def __init__(self, option_data):
         self.config = option_data
-
-
-
-
-
-
-

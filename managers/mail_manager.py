@@ -1,7 +1,7 @@
 import smtplib
 from email.mime.text import MIMEText
 
-from config import Config
+from services.config import Config
 
 class MailManager:
     def __init__(self):

@@ -16,11 +16,6 @@
             "xml_grouping": {
                 "Sales/Transaction": ["CodiceCliente"]
             },
-            "parameters": {
-                "DateFrom": "",
-                "DateTo": ""
-            },
-            
             "ftp_config": {
                 "host": "ftp.example.com",
                 "user": "ftp_user",
@@ -51,8 +46,6 @@
                 "password": "ftp_password",
                 "port": 21
             },
-            
-           
             "naming_convention": "CWHS_CodiceSAPCocaColaV2_2_YYYYMMDDhhmmss"
         },
         {
@@ -145,8 +138,15 @@
         "status_ok": "OK",
         "status_ko": "KO"
     },
-    "log_file": "data_sharing.log",
-    "output_path": "C:\\Users\\gabriele.chiarillo.CDA\\source\\repos\\DataSharing\\OutPut",
+    "working_folder": "C:\\Users\\gabriele.chiarillo.CDA\\source\\repos\\DataSharing",
+    "log": {
+        "level": "DEBUG",
+        "folder": "LOG",
+        "name": "data_sharing.log"
+    },
+    "template_path": "templatexml",
+    "querysql_path": "querysql",
+    "output_path": "OutPut",
     "placeholders": {
         "YYYYMMDDhhmmss": "%Y%m%d%H%M%S",
         "YYYY-MM-DD": "%Y-%m-%d",

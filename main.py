@@ -1,26 +1,19 @@
-import sqlite3
-import csv
-import xml.etree.ElementTree as ET
-import json
-import config
-from data_sharing_config import DataSharingOption, Option
+from services.data_sharing_config import DataSharingOption, Option
 from managers.data_owner_manager import DataSharingOwnerManager
-from config import Config
+from services.config import Config
 import datetime
 import argparse
-import json
-import os
-from log_manager import LogManager
+from managers.log_manager import LogManager
 
 
 
 
 class DataSharing:
     def __init__(self):
-        
+        self.config = Config()
         self.ds_option = DataSharingOption()
         self.dso_manager = DataSharingOwnerManager()   
-        self.log = LogManager(Config().log_file)
+        self.log = LogManager(self.config.log_file, self.config.log_level)
 
     def validate_period(self, period, interactive=True):
         while True:

@@ -3,7 +3,7 @@ import importlib
 import pandas as pd
 import pyodbc
 
-from config import Config
+from services.config import Config
 from .repositories import AutoExecutionRepository, SociRepository
 
 

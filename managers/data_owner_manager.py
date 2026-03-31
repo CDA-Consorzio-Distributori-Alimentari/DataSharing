@@ -1,6 +1,6 @@
-from config import Config
-from data_sharing_config import Option
-from log_manager import LogManager
+from services.config import Config
+from services.data_sharing_config import Option
+from .log_manager import LogManager
 from datetime import datetime
 
 from database import DBManager
@@ -26,7 +26,7 @@ class DataSharingOwnerManager:
         self._excel_manager = None
 
                 # Logger condiviso e accesso al database.
-        self.log = LogManager(self.config.log_file)
+        self.log = LogManager(self.config.log_file, self.config.log_level)
         self.db_manager = DBManager(self.log)
 
     def get_auto_execution_config(self):
@@ -152,11 +152,9 @@ class DataSharingOwnerManager:
         if not query_file:
             # Se la configurazione non specifica il file SQL, uso la convenzione
             # basata sul nome dell'export.
-            query_file = f"querysql/{config_ds.name.lower().replace(' ', '_')}_query.sql"
+            query_file = f"{config_ds.name.lower().replace(' ', '_')}_query.sql"
         if not os.path.isabs(query_file):
-            # Converto il path relativo in assoluto rispetto alla root del progetto.
-            project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-            query_file = os.path.abspath(os.path.join(project_root, query_file))
+            query_file = os.path.abspath(os.path.join(self.config.querysql_path, query_file))
         
 
         # Read SQL query from file

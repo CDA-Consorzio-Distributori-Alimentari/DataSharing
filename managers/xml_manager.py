@@ -8,7 +8,7 @@ import re
 import pandas as pd
 from lxml import etree
 
-from data_sharing_config import Option
+from services.data_sharing_config import Option
 
 
 class XMLManager:
@@ -65,14 +65,14 @@ class XMLManager:
 
     def _resolve_template_path(self, option: Option) -> str:
         template_path = getattr(option, "xslt_template", None)
-        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        template_root = self.config.template_path
         if template_path:
             if os.path.isabs(template_path):
                 return template_path
-            return os.path.abspath(os.path.join(project_root, template_path))
+            return os.path.abspath(os.path.join(template_root, template_path))
 
         candidates = []
-        for root_dir, dir_names, file_names in os.walk(project_root):
+        for root_dir, dir_names, file_names in os.walk(template_root):
             dir_names[:] = [name for name in dir_names if name.lower() != "old"]
             for file_name in file_names:
                 if not file_name.lower().endswith(".xslt"):
@@ -81,7 +81,7 @@ class XMLManager:
                 candidates.append((full_path, self._normalize_name(file_name)))
 
         if not candidates:
-            raise FileNotFoundError("Nessun file XSLT trovato nel progetto.")
+            raise FileNotFoundError(f"Nessun file XSLT trovato nella cartella template: {template_root}")
 
         option_keys = [
             self._normalize_name(getattr(option, "name", "")),
