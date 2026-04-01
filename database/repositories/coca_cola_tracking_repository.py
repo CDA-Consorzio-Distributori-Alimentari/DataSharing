@@ -4,7 +4,7 @@ from .base_repository import BaseRepository
 class CocaColaTrackingRepository(BaseRepository):
     DEFAULT_TABLE_NAME = "tc_Coca_Cola"
     DEFAULT_TABLE_SCHEMA = "dbo"
-    COLUMN_NAMES = {
+    COLUMN_MAPPING = {
         "socio_code": "tc_soci_codice",
         "socio_polo": "tc_soci_Polo",
         "wholesaler_id": "TC_Soci_CocaCola_Codice",
@@ -16,16 +16,17 @@ class CocaColaTrackingRepository(BaseRepository):
 
     def __init__(self, db_manager, tracking_config=None):
         self.tracking_config = tracking_config or {}
-        self.table_schema, self.table_name = self._resolve_table_name(self.tracking_config.get("table"))
-        self.column_names = dict(self.COLUMN_NAMES)
+        self.table_schema, self.table_name = self._resolve_table_name(db_manager, self.tracking_config.get("table"))
+        self.column_mapping = dict(self.COLUMN_MAPPING)
         super().__init__(db_manager)
 
-    def _resolve_table_name(self, configured_table_name):
+    @staticmethod
+    def _resolve_table_name(db_manager, configured_table_name):
         if not configured_table_name:
-            return self.DEFAULT_TABLE_SCHEMA, self.DEFAULT_TABLE_NAME
+            return CocaColaTrackingRepository.DEFAULT_TABLE_SCHEMA, CocaColaTrackingRepository.DEFAULT_TABLE_NAME
 
-        schema_name, table_name = self.db_manager._parse_table_name(configured_table_name)
-        return schema_name or self.DEFAULT_TABLE_SCHEMA, table_name
+        schema_name, table_name = db_manager._parse_table_name(configured_table_name)
+        return schema_name or CocaColaTrackingRepository.DEFAULT_TABLE_SCHEMA, table_name
 
     def _map_model(self):
         tracking_table = self.db_manager._reflect_table(f"{self.table_schema}.{self.table_name}")
@@ -40,13 +41,13 @@ class CocaColaTrackingRepository(BaseRepository):
     def add_entry(self, values):
         return self.add(
             {
-                self.column_names["socio_code"]: values.get("socio_code"),
-                self.column_names["socio_polo"]: values.get("socio_polo"),
-                self.column_names["wholesaler_id"]: values.get("wholesaler_id"),
-                self.column_names["period"]: values.get("period"),
-                self.column_names["flow_number"]: values.get("flow_number"),
-                self.column_names["log"]: values.get("log"),
-                self.column_names["created_at"]: values.get("created_at"),
+                self.column_mapping["socio_code"]: values.get("socio_code"),
+                self.column_mapping["socio_polo"]: values.get("socio_polo"),
+                self.column_mapping["wholesaler_id"]: values.get("wholesaler_id"),
+                self.column_mapping["period"]: values.get("period"),
+                self.column_mapping["flow_number"]: values.get("flow_number"),
+                self.column_mapping["log"]: values.get("log"),
+                self.column_mapping["created_at"]: values.get("created_at"),
             }
         )
 
@@ -60,28 +61,28 @@ class CocaColaTrackingRepository(BaseRepository):
 
     def upsert_entry(self, values):
         filters = {
-            self.column_names["socio_code"]: values.get("socio_code"),
-            self.column_names["socio_polo"]: values.get("socio_polo"),
-            self.column_names["wholesaler_id"]: values.get("wholesaler_id"),
-            self.column_names["period"]: values.get("period"),
-            self.column_names["flow_number"]: values.get("flow_number"),
+            self.column_mapping["socio_code"]: values.get("socio_code"),
+            self.column_mapping["socio_polo"]: values.get("socio_polo"),
+            self.column_mapping["wholesaler_id"]: values.get("wholesaler_id"),
+            self.column_mapping["period"]: values.get("period"),
+            self.column_mapping["flow_number"]: values.get("flow_number"),
         }
         existing_entry = self.get_first_by_filters(filters)
         payload = {
-            self.column_names["socio_code"]: values.get("socio_code"),
-            self.column_names["socio_polo"]: values.get("socio_polo"),
-            self.column_names["wholesaler_id"]: values.get("wholesaler_id"),
-            self.column_names["period"]: values.get("period"),
-            self.column_names["flow_number"]: values.get("flow_number"),
-            self.column_names["log"]: values.get("log"),
-            self.column_names["created_at"]: values.get("created_at"),
+            self.column_mapping["socio_code"]: values.get("socio_code"),
+            self.column_mapping["socio_polo"]: values.get("socio_polo"),
+            self.column_mapping["wholesaler_id"]: values.get("wholesaler_id"),
+            self.column_mapping["period"]: values.get("period"),
+            self.column_mapping["flow_number"]: values.get("flow_number"),
+            self.column_mapping["log"]: values.get("log"),
+            self.column_mapping["created_at"]: values.get("created_at"),
         }
 
         if existing_entry is None:
             return self.add(payload)
 
-        payload[self.column_names["log"]] = self._merge_log(
-            getattr(existing_entry, self.column_names["log"], None),
+        payload[self.column_mapping["log"]] = self._merge_log(
+            getattr(existing_entry, self.column_mapping["log"], None),
             values.get("log"),
         )
 

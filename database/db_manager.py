@@ -142,7 +142,7 @@ class DBManager:
         try:
             repository.upsert_entry(entry_values)
         except ModuleNotFoundError:
-            column_names = repository.column_names
+            column_names = repository.column_mapping
             table_name = f"{repository.table_schema}.{repository.table_name}"
             upsert_query = f"""
                 UPDATE {table_name}
