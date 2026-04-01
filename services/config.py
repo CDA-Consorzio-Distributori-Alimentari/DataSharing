@@ -1,6 +1,7 @@
 import json
 import logging
 from pathlib import Path
+import sys
 
 from services.app_metadata import APP_NAME, APP_VERSION, COMPANY_NAME, FILE_DESCRIPTION, PRODUCT_NAME
 from services.config_loader import load_merged_config
@@ -8,8 +9,9 @@ from services.config_loader import load_merged_config
 
 class Config:
     def __init__(self):
-        self.configs_file = "config.json"
-        self.local_configs_file = "config.local.json"
+        runtime_root = self._get_project_root()
+        self.configs_file = runtime_root / "config.json"
+        self.local_configs_file = runtime_root / "config.local.json"
         self.placeholders = {}
         self.load_config()
 
@@ -137,6 +139,8 @@ class Config:
         return self._product_name
 
     def _get_project_root(self):
+        if getattr(sys, "frozen", False):
+            return Path(sys.executable).resolve().parent
         return Path(__file__).resolve().parent.parent
 
     def _resolve_root_path(self, configured_root_path):
@@ -262,10 +266,13 @@ class Config:
         self._mail_config = config_data.get(
             "mail_config",
             {
-                "smtp_server": "smtp.example.com",
-                "port": 587,
+                "smtp_server": "spamfight.mdsnet.it",
+                "port": 26,
                 "user": "email_user",
                 "password": "email_password",
+                "sender_email": "dwh@cdaweb.it",
+                "summary_sender_email": "norepy@cdaweb.it",
+                "summary_recipient": "dwh@cdaweb.it",
             },
         )
         self._coca_cola_tracking = config_data.get(

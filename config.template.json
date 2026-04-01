@@ -149,15 +149,11 @@
         "table": "dbo.tc_Coca_Cola",
         "tracked_codes": ["CC001", "CC002"]
     },
-    "artifacts_root_path": "DataSharingShare",
+    "artifacts_root_path": "\\\\cdabackup\\DataSharing",
     "log": {
         "level": "DEBUG",
-        "folder": "LOG",
         "name": "data_sharing.log"
     },
-    "template_path": "templatexml",
-    "querysql_path": "querysql",
-    "output_path": "OutPut",
     "placeholders": {
         "YYYYMMDDhhmmss": "%Y%m%d%H%M%S",
         "YYYY-MM-DD": "%Y-%m-%d",

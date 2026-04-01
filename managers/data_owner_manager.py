@@ -34,7 +34,103 @@ class DataSharingOwnerManager:
             "success": success,
             "message": message,
             "output_file": output_file,
+            "delivery": None,
         }
+
+    @staticmethod
+    def _get_socio_row(socio_data):
+        if socio_data is None:
+            return {}
+        if hasattr(socio_data, "empty") and socio_data.empty:
+            return {}
+        if hasattr(socio_data, "iloc"):
+            socio_row = socio_data.iloc[0]
+            if hasattr(socio_row, "to_dict"):
+                return socio_row.to_dict()
+            return socio_row
+        if hasattr(socio_data, "to_dict"):
+            return socio_data.to_dict()
+        return socio_data
+
+    def _build_summary_subject(self, config_ds: Option, socio_row):
+        socio_name = str(socio_row.get("TC_Soci_Ragione_Sociale", "") or "").strip()
+        socio_code = str(socio_row.get("TC_Soci_Codice", "") or "").strip()
+        subject_parts = ["DataSharing", config_ds.name]
+        if socio_name or socio_code:
+            subject_parts.append("-")
+            subject_parts.append(" ".join(part for part in [socio_code, socio_name] if part).strip())
+        return " ".join(part for part in subject_parts if part).strip()
+
+    @staticmethod
+    def _build_delivery_summary(config_ds: Option, result):
+        delivery = result.get("delivery") or {}
+        recipients = delivery.get("recipients") or []
+        files = delivery.get("files") or []
+        published = delivery.get("published")
+
+        if published is False:
+            recipients = ["Pubblicazione non eseguita"]
+        elif not recipients:
+            if config_ds.delivery_method == DeliveryMethod.FTP:
+                recipients = [f"FTP {getattr(config_ds.config, 'host', '')}".strip()]
+            elif config_ds.delivery_method == DeliveryMethod.NASSHARE:
+                recipients = [getattr(config_ds.config, "deposit_address", "") or "NAS Share"]
+            else:
+                recipients = [str(config_ds.delivery_method)]
+
+        if not files and result.get("output_file"):
+            files = [os.path.basename(result.get("output_file"))]
+
+        return {
+            "published": published,
+            "recipients": [str(recipient).strip() for recipient in recipients if str(recipient).strip()],
+            "files": [str(file_name).strip() for file_name in files if str(file_name).strip()],
+        }
+
+    def _send_summary_mail(self, socio, periodo, config_ds: Option, socio_data, result):
+        socio_row = self._get_socio_row(socio_data)
+        delivery = self._build_delivery_summary(config_ds, result)
+        subject = self._build_summary_subject(config_ds, socio_row)
+
+        socio_code = str(socio_row.get("TC_Soci_Codice", socio) or socio).strip()
+        socio_name = str(socio_row.get("TC_Soci_Ragione_Sociale", "") or "").strip()
+        recipient_lines = delivery["recipients"] or [""]
+        file_lines = delivery["files"] or [os.path.basename(result.get("output_file") or "")]
+        delivery_status = "OK" if result.get("success") else "KO"
+
+        body_lines = [
+            f"Esito: {delivery_status}",
+            f"Data sharing codice: {config_ds.code}",
+            f"Data sharing nome: {config_ds.name}",
+            f"Socio codice: {socio_code}",
+            f"Socio nome: {socio_name}",
+            f"Periodo: {periodo}",
+            f"Modalita invio: {config_ds.delivery_method}",
+            "Inviato a:",
+            *[f"- {recipient}" for recipient in recipient_lines],
+            "Elenco file:",
+            *[f"- {file_name}" for file_name in file_lines if file_name],
+            f"Percorso locale: {result.get('output_file') or ''}",
+            f"Messaggio: {result.get('message', '')}",
+        ]
+
+        if delivery.get("published") is False:
+            body_lines.insert(7, "Pubblicazione: non eseguita")
+
+        try:
+            self.log.info(
+                f"Invio mail di recap verso {self.mail_manager.summary_recipient} per data sharing {config_ds.code}, socio {socio_code}, periodo {periodo}."
+            )
+            self.mail_manager.send_summary_mail(subject, "\n".join(body_lines))
+            self.log.info(
+                f"Mail di recap inviata verso {self.mail_manager.summary_recipient} per data sharing {config_ds.code}, socio {socio_code}, periodo {periodo}."
+            )
+        except Exception as exc:
+            self.log.error(f"Invio mail di recap fallito: {exc}")
+
+    def _finalize_result(self, socio, periodo, config_ds: Option, socio_data, result):
+        self._send_summary_mail(socio, periodo, config_ds, socio_data, result)
+        return result
 
     def _build_output_directory(self, socio, config_ds: Option):
         output_dir = os.path.join(self.config.output_path, str(socio).strip(), config_ds.code)
@@ -170,15 +266,30 @@ class DataSharingOwnerManager:
             self.log.info(
                 f"Modalita debug attiva: pubblicazione saltata per {config_ds.code}. File mantenuto solo in locale: {output_file}."
             )
-            return False
+            return {
+                "published": False,
+                "recipients": [],
+                "files": [os.path.basename(output_file)],
+            }
 
         if config_ds.delivery_method == DeliveryMethod.FTP:
             file_name = os.path.basename(output_file)
             self.log.info(f"Pubblicazione FTP del file {file_name} per data sharing {config_ds.code}.")
             self.get_ftp_manager(config_ds).upload_file(file_name, delivery_stream)
-            return True
+            sent_files = [file_name]
+            if getattr(config_ds.config, "create_ok_file", False):
+                sent_files.append(f"{Path(file_name).stem}.ok")
+            return {
+                "published": True,
+                "recipients": [f"FTP {getattr(config_ds.config, 'host', '')}".strip()],
+                "files": sent_files,
+            }
 
-        return False
+        return {
+            "published": False,
+            "recipients": [],
+            "files": [os.path.basename(output_file)],
+        }
 
     def _resolve_query_file_path(self, config_ds: Option, query_file: str):
         if os.path.isabs(query_file):
@@ -274,9 +385,9 @@ class DataSharingOwnerManager:
         # Il risultato ritorna sempre in forma strutturata, così il metodo
         # può essere riusato sia da CLI sia da una futura API.
         self.log.info(f"Avvio elaborazione per socio {socio}, periodo {periodo}, data sharing {config_ds.code}.")
+        socio_data = self.verify_socio(socio)
         tracking_session = None
         if self.coca_cola_tracking_manager.supports(config_ds):
-            socio_data = self.verify_socio(socio)
             tracking_session = self.coca_cola_tracking_manager.start_session(socio, periodo, config_ds, socio_data)
 
         # 1. Carico e preparo la query SQL da eseguire.
@@ -285,7 +396,7 @@ class DataSharingOwnerManager:
             if tracking_session is not None:
                 self.coca_cola_tracking_manager.append(tracking_session, "ERRORE LETTURA QUERY")
                 self.coca_cola_tracking_manager.persist(tracking_session)
-            return error_result
+            return self._finalize_result(socio, periodo, config_ds, socio_data, error_result)
 
         # 2. Eseguo la query e ottengo il dataset da esportare.
         database_results = self.db_manager.fetch_all(query)
@@ -306,14 +417,14 @@ class DataSharingOwnerManager:
             if tracking_session is not None:
                 self.coca_cola_tracking_manager.append(tracking_session, "SCRITTURA FILE XML KO")
                 self.coca_cola_tracking_manager.persist(tracking_session)
-            return self._build_result(False, message)
+            return self._finalize_result(socio, periodo, config_ds, socio_data, self._build_result(False, message))
         except ValueError as exc:
             message = str(exc)
             self.log.error(message)
             if tracking_session is not None:
                 self.coca_cola_tracking_manager.append(tracking_session, "SCRITTURA FILE XML KO")
                 self.coca_cola_tracking_manager.persist(tracking_session)
-            return self._build_result(False, message)
+            return self._finalize_result(socio, periodo, config_ds, socio_data, self._build_result(False, message))
 
         # 4. Salvo il file in un punto unico, indipendente dal tipo output.
         try:
@@ -324,13 +435,14 @@ class DataSharingOwnerManager:
             if tracking_session is not None:
                 self.coca_cola_tracking_manager.append(tracking_session, "SCRITTURA FILE XML KO")
                 self.coca_cola_tracking_manager.persist(tracking_session, output_file)
-            return self._build_result(False, message)
+            return self._finalize_result(socio, periodo, config_ds, socio_data, self._build_result(False, message))
 
         # 5. Pubblico il file sul canale di consegna configurato.
         try:
             if tracking_session is not None and config_ds.delivery_method == DeliveryMethod.FTP:
                 self.coca_cola_tracking_manager.append(tracking_session, "INVIO FILE XML...")
-            published = self._publish_output(config_ds, output_file, delivery_stream)
+            delivery_details = self._publish_output(config_ds, output_file, delivery_stream)
+            published = bool(delivery_details.get("published"))
             if tracking_session is not None and config_ds.delivery_method == DeliveryMethod.FTP and published:
                 self.coca_cola_tracking_manager.append(tracking_session, "INVIO FILE XML OK")
             if tracking_session is not None and config_ds.delivery_method == DeliveryMethod.FTP and not published:
@@ -341,7 +453,13 @@ class DataSharingOwnerManager:
             if tracking_session is not None:
                 self.coca_cola_tracking_manager.append(tracking_session, "INVIO FILE XML KO")
                 self.coca_cola_tracking_manager.persist(tracking_session, output_file)
-            return self._build_result(False, message, output_file)
+            error_result = self._build_result(False, message, output_file)
+            error_result["delivery"] = {
+                "published": False,
+                "recipients": [],
+                "files": [os.path.basename(output_file)],
+            }
+            return self._finalize_result(socio, periodo, config_ds, socio_data, error_result)
 
         if tracking_session is not None:
             self.coca_cola_tracking_manager.persist(tracking_session, output_file)
@@ -352,7 +470,9 @@ class DataSharingOwnerManager:
 
         self.log.info("Elaborazione completata.")
 
-        return self._build_result(True, message, output_file)
+        success_result = self._build_result(True, message, output_file)
+        success_result["delivery"] = delivery_details
+        return self._finalize_result(socio, periodo, config_ds, socio_data, success_result)
         
     def verify_socio(self, socio):
         return self.db_manager.verify_socio(socio)

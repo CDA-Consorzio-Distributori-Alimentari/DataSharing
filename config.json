@@ -76,10 +76,7 @@
             "name": "DIAGEO",
             "Campo": "TC_Soci_DIAGEO_Attivo",
             "file_type": "csv",
-            "delivery_method": "nasshare",
-            "nasshare_config": {
-                "deposit_address": "\\nas\\default"
-            },
+            "delivery_method": "nasshare",         
             "naming_convention": "CWHS_CodiceSAPDIAGEO_2_YYYYMMDDhhmmss"
         },
         {
@@ -87,10 +84,7 @@
             "name": "RedBull",
             "Campo": "TC_Soci_RedBull_Attivo",
             "file_type": "csv",
-            "delivery_method": "nasshare",
-            "nasshare_config": {
-                "deposit_address": "\\nas\\default"
-            },
+            "delivery_method": "nasshare",          
             "naming_convention": "CWHS_CodiceSAPRedBull_2_YYYYMMDDhhmmss"
         },
         {
@@ -98,10 +92,7 @@
             "name": "Martini",
             "Campo": "TC_Soci_Martini_Attivo",
             "file_type": "csv",
-            "delivery_method": "nasshare",
-            "nasshare_config": {
-                "deposit_address": "\\nas\\default"
-            },
+            "delivery_method": "nasshare",            
             "naming_convention": "CWHS_CodiceSAPMartini_2_YYYYMMDDhhmmss"
         }
     ],
@@ -123,10 +114,13 @@
         "password": "ftp_password"
     },
     "mail_config": {
-        "smtp_server": "smtp.example.com",
-        "port": 587,
+        "smtp_server": "spamfight.mdsnet.it",
+        "port": 26,
         "user": "email_user",
-        "password": "email_password"
+        "password": "email_password",
+        "sender_email": "dwh@cdaweb.it",
+        "summary_sender_email": "norepy@cdaweb.it",
+        "summary_recipient": "dwh@cdaweb.it"
     },
     "connection_string": {
         "data_source": "DWH",
@@ -144,15 +138,11 @@
         "table": "dbo.tc_Coca_Cola",
         "tracked_codes": ["CC001", "CC002"]
     },
-    "artifacts_root_path": "DataSharingShare",
+    "artifacts_root_path": "\\\\cdabackup\\DataSharing",
     "log": {
         "level": "DEBUG",
-        "folder": "LOG",
         "name": "data_sharing.log"
     },
-    "template_path": "templatexml",
-    "querysql_path": "querysql",
-    "output_path": "OutPut",
     "placeholders": {
         "YYYYMMDDhhmmss": "%Y%m%d%H%M%S",
         "YYYY-MM-DD": "%Y-%m-%d",

@@ -1,4 +1,6 @@
 from enum import StrEnum
+from pathlib import Path
+import sys
 
 from services.config_loader import load_merged_config
 
@@ -23,8 +25,24 @@ def _enum_member_name(value):
     return str(value).strip().upper().replace(" ", "_")
 
 
-def _load_config_data(config_file="config.json"):
-    return load_merged_config(config_file, "config.local.json")
+def _get_runtime_root():
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent.parent
+
+
+def _load_config_data(config_file="config.json", local_config_file="config.local.json"):
+    runtime_root = _get_runtime_root()
+    config_path = Path(config_file)
+    local_config_path = Path(local_config_file)
+
+    if not config_path.is_absolute():
+        config_path = runtime_root / config_path
+
+    if not local_config_path.is_absolute():
+        local_config_path = runtime_root / local_config_path
+
+    return load_merged_config(config_path, local_config_path)
 
 
 FileType = StrEnum(
@@ -51,8 +69,7 @@ DeliveryMethod = StrEnum(
 class DataSharingOption:
     def __init__(self):
         self.options = set()  # Initialize options as a set
-        config_file = "config.json"
-        config_data = _load_config_data(config_file)
+        config_data = _load_config_data()
         items = config_data.get("data_sharing_options", [])
 
         for item in items:

@@ -22,6 +22,7 @@ Thumbs.db
 .DS_Store
 build/
 dist/
+deploy/
 *.egg-info/
 # Added by ggshield
 .cache_ggshield

@@ -17,15 +17,17 @@ Il progetto distingue due aree:
 Nel file `config.json` il campo principale e:
 
 ```json
-"artifacts_root_path": "DataSharingShare"
+"artifacts_root_path": "\\\\cdabackup\\DataSharing"
 ```
+
+Nella configurazione standard basta modificare questo solo campo: tutte le altre cartelle (`LOG`, `OutPut`, `querysql`, `templatexml`) vengono risolte automaticamente sotto questa root.
 
 Con questa impostazione il progetto usa automaticamente:
 
-- `DataSharingShare/LOG`
-- `DataSharingShare/OutPut`
-- `DataSharingShare/querysql`
-- `DataSharingShare/templatexml`
+- `\\cdabackup\DataSharing\LOG`
+- `\\cdabackup\DataSharing\OutPut`
+- `\\cdabackup\DataSharing\querysql`
+- `\\cdabackup\DataSharing\templatexml`
 
 All'avvio, leggendo `config.json`, il progetto crea automaticamente:
 
@@ -79,6 +81,24 @@ In questo caso il progetto usera automaticamente:
 
 - `working_folder` e opzionale e normalmente non serve piu
 - `shared_root_path` resta supportato per compatibilita, ma il nome consigliato e `artifacts_root_path`
+
+### Override locale consigliato
+
+Per evitare di modificare il file base condiviso dal team, il progetto supporta anche `config.local.json`.
+
+Regole operative:
+
+- `config.json` resta il file base comune
+- `config.local.json` contiene solo le differenze locali o sensibili
+- in caso di duplicati, i valori di `config.local.json` sovrascrivono quelli di `config.json`
+- per `data_sharing_options` il merge avviene per `code`
+
+Esempi di utilizzo tipici:
+
+- credenziali FTP diverse tra ambienti
+- share di rete locale diversa tra PC o server
+- attivazione temporanea di `DEBUG` per test controllati
+- parametri SMTP o destinatari di recap diversi tra ambienti
 
 ## 3. Struttura Configurazione XML
 
@@ -263,3 +283,62 @@ Per aggiungere un nuovo data sharing XML:
 4. usare `xml_mapping` solo per le eccezioni reali
 5. usare `xml_grouping` solo dove il template ha sezioni annidate
 6. verificare che output e log finiscano sotto la root definita da `artifacts_root_path`
+
+## 10. Configurazione Invio e Recap
+
+L'invio operativo e il recap finale usano la sezione `mail_config` del file di configurazione.
+
+Esempio:
+
+```json
+"mail_config": {
+  "smtp_server": "spamfight.mdsnet.it",
+  "port": 26,
+  "user": "email_user",
+  "password": "email_password",
+  "sender_email": "dwh@cdaweb.it",
+  "summary_sender_email": "norepy@cdaweb.it",
+  "summary_recipient": "dwh@cdaweb.it"
+}
+```
+
+Significato dei campi:
+
+- `sender_email`: mittente standard per eventuali invii verso destinatari esterni al data sharing
+- `summary_sender_email`: mittente usato per la mail di recap interna
+- `summary_recipient`: casella che riceve il riepilogo finale di ogni elaborazione
+
+Contenuto del recap:
+
+- esito dell'elaborazione
+- codice e nome del data sharing
+- codice e nome del socio
+- periodo elaborato
+- modalita di consegna
+- destinatario o destinazione dell'invio
+- elenco file inviati, incluso l'eventuale `.ok`
+- percorso locale del file generato
+- messaggio sintetico finale
+
+Oggetto del recap:
+
+- `DataSharing <Nome Data Sharing> - <Codice Socio> <Nome Socio>`
+
+## 11. Comportamento in DEBUG
+
+Quando `DEBUG` e impostato a `true`:
+
+- il file viene comunque generato e salvato localmente
+- la pubblicazione esterna viene saltata
+- il tracking Coca Cola non viene scritto su database
+- il recap mail indica che la pubblicazione non e stata eseguita
+
+Questa modalita e utile per testare naming, query, generazione file e salvataggio locale senza spedire nulla all'esterno.
+
+## 12. Note FTP
+
+Per le opzioni con `delivery_method: ftp`:
+
+- il file viene inviato all'host configurato nel blocco `ftp_config`
+- se `create_ok_file` e `true`, dopo il file principale viene caricato anche il marker `.ok`
+- il recap finale elenca entrambi i file quando presenti

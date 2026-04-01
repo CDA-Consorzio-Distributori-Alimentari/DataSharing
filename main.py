@@ -184,6 +184,11 @@ class DataSharing:
         # Log the operation
         self.log.info(result["message"])
 
+    def print_data_sharing_list(self):
+        print("DATA SHARING DISPONIBILI:")
+        for option in sorted(self.ds_option.options, key=lambda item: (item.code or "", item.name or "")):
+            print(f"- {option.code} | {option.name} | {option.file_type}")
+
     def command_line_mode(self):
         parser = argparse.ArgumentParser(description="Data Sharing Script")
         parser.add_argument("--version", action="version", version=f"DataSharing {self.config.version}")
@@ -191,7 +196,12 @@ class DataSharing:
         parser.add_argument("--datasharing", help="Codice del data sharing")
         parser.add_argument("--socio", help="Codice socio (opzionale)")
         parser.add_argument("--code", help="Codice 'CC001' per configurazioni avanzate")
+        parser.add_argument("--list-datasharing", action="store_true", help="Mostra l'elenco dei data sharing disponibili")
         args = parser.parse_args()
+
+        if args.list_datasharing:
+            self.print_data_sharing_list()
+            return
 
         if not args.period or not args.datasharing:
             parser.error("--period e --datasharing sono obbligatori")
@@ -249,13 +259,14 @@ class DataSharing:
                 print("--datasharing <Codice> (Obbligatorio, secondo parametro): Specifica il codice del data sharing.")
                 print("--socio <Codice> (Opzionale, terzo parametro): Specifica il codice socio. Se non fornito, verranno elaborati tutti i soci abilitati.")
                 print("--code <Codice> (Obbligatorio, quarto parametro): Specifica il codice \"CC001\" per configurazioni avanzate.")
-                print("DATA SHARING DISPONIBILI:")
-                for option in self.ds_option.options:
-                    print(f"- {option.name} ({option.file_type})")
+                print("--list-datasharing: Mostra l'elenco dei data sharing disponibili.")
+                self.print_data_sharing_list()
                 print("MODALITÀ:")
                 print("- Se vengono forniti parametri da riga di comando, il programma li utilizza automaticamente.")
                 print("- Se non vengono forniti parametri, il programma entra in modalità interattiva.")
                 print("ESEMPIO DI UTILIZZO:")
+                print("--list-datasharing")
+                print("Questo comando mostra l'elenco dei data sharing disponibili.")
                 print("--period 202401 --datasharing CC001 --socio 12345")
                 print("Questo comando elabora gennaio 2024 per il socio 12345.")
                 print("--period 2024 --datasharing CC001 --socio 12345")

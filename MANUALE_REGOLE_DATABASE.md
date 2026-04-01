@@ -1,17 +1,3 @@
----
-
-## Sezione Test e Simulazione (pragma DEBUG)
-
-### Modalità DEBUG: Simulazione Backend
-
-Per facilitare lo sviluppo e i test, il backend implementa una modalità di simulazione attivata tramite `#if DEBUG` (pragma DEBUG):
-
-- **Login simulato**: la chiamata a `/api/TaUserLogin/login` con username e password "demo" restituisce sempre un utente statico demo, senza interrogare il database.
-- **Menu simulato**: per l’utente demo (ruolo "socio"), le API `/api/Menu` e `/api/MenuUtente` restituiscono sempre le voci di menu "Mockup", "Gestione Super Agente", "Gestione Unità di Misura".
-- **Permessi simulati**: tutte le operazioni di attivazione, disattivazione, cancellazione logica e creazione su menu, ruoli e logo sono simulate e non modificano dati reali in DEBUG.
-- **Scopo**: questa modalità consente di testare il frontend e la logica di navigazione senza dipendenze dal database reale e senza rischi per i dati.
-
-**Nota**: In modalità RELEASE, tutte le operazioni sono reali e i dati sono persistenti.
 ## Manuale Regole di Nomenclatura e Struttura Database (MS-SQL)
 
 ### NOTE IMPORTANTI SUGLI SCHEMI
@@ -220,28 +206,22 @@ Questo campo serve per avere un codice identificativo leggibile, strutturato e u
   - `NUM_RIGA` INTEGER NOT NULL
   - `NOM_FILE` VARCHAR(255)
   - `DAT_INSERIMENTO` DATETIME NOT NULL DEFAULT GETDATE()
-<<<<<<< Updated upstream
-- Prima dell�inserimento, i dati devono essere cancellati per socio.
-=======
+- Prima dell'inserimento, i dati devono essere cancellati per socio.
+
 ## Regole aggiuntive per tabelle TI e TO
 
- - `ID_SOCIO` INTEGER NOT NULL
- - `COD_JOB` UNIQUEIDENTIFIER NULL
- - `NUM_RIGA` INTEGER NOT NULL
-sono chiave della tabella 
-Le tabelle con prefisso **TI** e **TO** devono rispettare le seguenti regole:
+Le tabelle con prefisso **TI** e **TO** devono rispettare anche le seguenti regole:
 
-- Il primo campo della tabella deve essere:
-  - `[ID_SOCIO] [int] NOT NULL`
-- Gli ultimi campi della tabella devono essere, nell'ordine:
-  - `[COD_JOB] [uniqueidentifier] NOT NULL`
-  - `[DAT_CARICAMENTO] [datetime] NULL`
-  - `[NOM_FILE] [varchar](255) NULL`
-  - `[NUM_RIGA] [int] NULL`
+- `ID_SOCIO`, `COD_JOB` e `NUM_RIGA` costituiscono la chiave logica della tabella
+- il primo campo della tabella deve essere `ID_SOCIO`
+- gli ultimi campi della tabella devono essere, nell'ordine:
+    - `COD_JOB`
+    - `DAT_CARICAMENTO`
+    - `NOM_FILE`
+    - `NUM_RIGA`
 
-Questa struttura è obbligatoria per tutte le tabelle TI e TO.
-- Prima dell'inserimento, i dati devono essere cancellati per socio.
->>>>>>> Stashed changes
+Questa struttura e obbligatoria per tutte le tabelle `TI` e `TO`.
+
 - Esempio DDL:
 CREATE TABLE TO.NOME_TABELLA_ (
     ID_SOCIO INTEGER NOT NULL,
