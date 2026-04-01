@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from pathlib import Path
 
 
@@ -24,6 +23,14 @@ class Config:
     @property
     def working_folder(self):
         return self._working_folder
+
+    @property
+    def artifacts_root_path(self):
+        return self._artifacts_root_path
+
+    @property
+    def shared_root_path(self):
+        return self._artifacts_root_path
 
     @property
     def template_path(self):
@@ -103,17 +110,27 @@ class Config:
     def _get_project_root(self):
         return Path(__file__).resolve().parent.parent
 
-    def _resolve_path(self, configured_path, default_relative_path):
-        if configured_path:
-            candidate = Path(configured_path)
+    def _resolve_root_path(self, configured_root_path):
+        if configured_root_path:
+            candidate = Path(configured_root_path)
             if not candidate.is_absolute():
                 candidate = self._working_folder / candidate
             return candidate.resolve(strict=False)
 
-        return (self._working_folder / default_relative_path).resolve(strict=False)
+        return self._working_folder
+
+    def _resolve_path(self, configured_path, default_relative_path, base_path=None):
+        base_path = base_path or self._working_folder
+        if configured_path:
+            candidate = Path(configured_path)
+            if not candidate.is_absolute():
+                candidate = Path(base_path) / candidate
+            return candidate.resolve(strict=False)
+
+        return (Path(base_path) / default_relative_path).resolve(strict=False)
 
     def _get_default_log_folder(self):
-        return self._working_folder / "LOG"
+        return self._artifacts_root_path / "LOG"
 
     def _resolve_log_folder(self, log_folder):
         default_log_folder = self._get_default_log_folder()
@@ -122,15 +139,29 @@ class Config:
 
         candidate = Path(log_folder)
         if not candidate.is_absolute():
-            candidate = self._working_folder / candidate
+            candidate = self._artifacts_root_path / candidate
 
-        try:
-            if candidate.exists() and candidate.is_dir() and os.access(candidate, os.R_OK | os.W_OK):
-                return candidate
-        except OSError:
-            pass
+        return candidate.resolve(strict=False)
 
-        return default_log_folder
+    def _ensure_directory(self, directory_path):
+        Path(directory_path).mkdir(parents=True, exist_ok=True)
+
+    def _ensure_artifact_structure(self, config_data):
+        self._ensure_directory(self._artifacts_root_path)
+        self._ensure_directory(self._output_path)
+        self._ensure_directory(self._querysql_path)
+        self._ensure_directory(self._template_path)
+        self._ensure_directory(self._log_folder)
+
+        for option_data in config_data.get("data_sharing_options", []):
+            option_code = str(option_data.get("code", "")).strip()
+            if not option_code:
+                continue
+
+            self._ensure_directory(Path(self._querysql_path) / option_code)
+
+            if str(option_data.get("file_type", "")).lower() == "xml":
+                self._ensure_directory(Path(self._template_path) / option_code)
 
     @staticmethod
     def _resolve_log_level(log_level):
@@ -144,8 +175,8 @@ class Config:
         with open(self.configs_file, "r") as file:
             config_data = json.load(file)
 
-        configured_working_folder = config_data.get("working_folder")
         project_root = self._get_project_root()
+        configured_working_folder = config_data.get("working_folder")
         if configured_working_folder:
             working_folder = Path(configured_working_folder)
             if not working_folder.is_absolute():
@@ -154,9 +185,18 @@ class Config:
         else:
             self._working_folder = project_root
 
-        self._template_path = str(self._resolve_path(config_data.get("template_path"), "templatexml"))
-        self._querysql_path = str(self._resolve_path(config_data.get("querysql_path"), "querysql"))
-        self._output_path = str(self._resolve_path(config_data.get("output_path"), "OutPut"))
+        configured_artifacts_root = config_data.get("artifacts_root_path", config_data.get("shared_root_path"))
+        self._artifacts_root_path = self._resolve_root_path(configured_artifacts_root)
+
+        self._template_path = str(
+            self._resolve_path(config_data.get("template_path"), "templatexml", base_path=self._artifacts_root_path)
+        )
+        self._querysql_path = str(
+            self._resolve_path(config_data.get("querysql_path"), "querysql", base_path=self._artifacts_root_path)
+        )
+        self._output_path = str(
+            self._resolve_path(config_data.get("output_path"), "OutPut", base_path=self._artifacts_root_path)
+        )
         self._db_path = config_data.get("db_path", "data_sharing.db")
 
         log_config = config_data.get("log", {})
@@ -173,6 +213,7 @@ class Config:
         self._log_name = configured_log_name or (legacy_log_path.name if legacy_log_path else default_log_name)
         self._log_file = str(Path(self._log_folder) / self._log_name)
         self._log_level = self._resolve_log_level(log_config.get("level", config_data.get("log_level", "INFO")))
+        self._ensure_artifact_structure(config_data)
         self._ftp_config = config_data.get(
             "ftp_config",
             {

@@ -22,16 +22,12 @@
         <OutletEntry>
             <DeliverTo>
                 <OutletNumber>                   
-                    <xsl:value-of select="normalize-space(CodiceCliente)"/>                    
+                    <xsl:value-of select="normalize-space(CodiceClienteCDA)"/>                    
                 </OutletNumber>
-                <Name1>
-                    <xsl:value-of select="normalize-space(NomeCliente)"/>
-                </Name1>
+                <Name1>OSCURATO</Name1>
                 <Name2 xsi:nil="true"/>
                 <ContactPerson xsi:nil="true"/>
-                <Address1>
-                    <xsl:value-of select="normalize-space(Indirizzo)"/>
-                </Address1>
+                <Address1 xsi:nil="true"/>
                 <Address2 xsi:nil="true"/>
                 <PostalCode>
                     <xsl:value-of select="normalize-space(Cap)"/>
@@ -46,9 +42,7 @@
                 <VatNumber>
                     <xsl:value-of select="normalize-space(PartitaIva)"/>
                 </VatNumber>
-                <KeyAccount>
-                    <xsl:value-of select="normalize-space(CodiceAgente)"/>
-                </KeyAccount>
+                <KeyAccount xsi:nil="true"/>
                 <Channel>
                     <xsl:value-of select="normalize-space(SubCategoriaDescrizione)"/>
                 </Channel>
@@ -56,11 +50,9 @@
             </DeliverTo>
             <BillTo>
                 <OutletNumber>
-                    <xsl:value-of select="normalize-space(CodiceCliente)"/>
+                    <xsl:value-of select="normalize-space(CodiceClienteCDA)"/>
                 </OutletNumber>
-                <Name1>
-                    <xsl:value-of select="normalize-space(NomeCliente)"/>
-                </Name1>
+                <Name1>OSCURATO</Name1>
                 <Name2 xsi:nil="true"/>
                 <ContactPerson xsi:nil="true"/>
                 <Address1 xsi:nil="true"/>
@@ -75,9 +67,7 @@
                 <Telephone2 xsi:nil="true"/>
                 <Fax xsi:nil="true"/>
                 <Email xsi:nil="true"/>               
-                <VatNumber>
-                    <xsl:value-of select="normalize-space(PartitaIva)"/>
-                </VatNumber>
+                <VatNumber xsi:nil="true"/>
                 <KeyAccount xsi:nil="true"/>
                 <Channel>
                     <xsl:value-of select="normalize-space(SubCategoriaDescrizione)"/>
@@ -90,7 +80,7 @@
     <xsl:template match="Transaction">
         <Transaction>
             <OutletNumber>
-                <xsl:value-of select="normalize-space(CodiceCliente)"/> 
+                <xsl:value-of select="normalize-space(CodiceClienteCDA)"/> 
             </OutletNumber>
             <DeliveryDate>
                 <xsl:value-of select="normalize-space(DataDDT)"/>
@@ -106,7 +96,7 @@
     <xsl:template match="Detail">
         <TransactionDetails>
             <ProductNumber>
-                <xsl:value-of select="normalize-space(ArticoliCodiceHbc)"/>
+                <xsl:value-of select="normalize-space(ArticoliCodiceCDA)"/>
             </ProductNumber>
             <Quantity>
                 <xsl:value-of select="normalize-space(Volume)"/>
@@ -118,10 +108,10 @@
     <xsl:template match="Product">
         <ProductEntry>
             <ProductNumber>
-                <xsl:value-of select="normalize-space(ArticoliCodice)"/>
+                <xsl:value-of select="normalize-space(ArticoliCodiceCDA)"/>
             </ProductNumber>
             <ProductName>
-                <xsl:value-of select="normalize-space(ArticoliDescrizione)"/>
+                <xsl:value-of select="normalize-space(ArticoliDescrizioneCDA)"/>
             </ProductName>
             <UnitOfQuantity>L</UnitOfQuantity>
             <ArticleNameHbc>

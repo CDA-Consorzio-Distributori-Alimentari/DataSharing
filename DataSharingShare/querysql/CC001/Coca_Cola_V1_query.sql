@@ -10,8 +10,8 @@ SELECT
           
     ISNULL(CAST(TC_Articoli_Coca_Cola.codice_coca_cola AS VARCHAR(24)), 'Null-' + LTRIM(RTRIM(CAST(tc_articoli.TC_Articoli_Codice AS VARCHAR(24))))) AS ArticoliCodiceHbc,
     ISNULL(TC_Articoli_Coca_Cola.descrizione, '') AS ArticoliDescrizioneHbc,
-    TC_Articoli.TC_Articoli_Codice AS ArticoliCodice,
-    TC_Articoli.TC_Articoli_Descrizione AS ArticoliDescrizione,
+    TC_Articoli.TC_Articoli_Codice AS ArticoliCodiceCDA,
+    TC_Articoli.TC_Articoli_Descrizione AS ArticoliDescrizioneCDA,
     CONVERT(DATE, TW_Vendite_20.TW_Vendite_Data_DDT) AS DataDDT,
     TW_Vendite_20.TW_Vendite_Numero_DDT AS NumeroDDT,
     TW_Vendite_20.TW_Vendite_Pezzi AS Quantita,

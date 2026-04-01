@@ -15,22 +15,91 @@ class DataSharing:
         self.dso_manager = DataSharingOwnerManager()   
         self.log = LogManager(self.config.log_file, self.config.log_level)
 
+    @staticmethod
+    def _max_allowed_period_date():
+        max_date = datetime.datetime.today().replace(day=1) - datetime.timedelta(days=1)
+        return max_date.replace(day=1)
+
+    @staticmethod
+    def _max_available_month_for_yearly_request(current_date):
+        if current_date.day >= 20:
+            return current_date.month - 1
+        return current_date.month - 2
+
+    def _expand_periods(self, period):
+        period_value = str(period).strip()
+        max_period_date = self._max_allowed_period_date()
+
+        if len(period_value) == 6:
+            period_date = datetime.datetime.strptime(period_value, "%Y%m")
+            if period_date > max_period_date:
+                raise ValueError("Il periodo non può essere superiore a oggi meno un mese.")
+            return [period_value]
+
+        if len(period_value) == 4:
+            year_value = int(period_value)
+            if year_value > max_period_date.year:
+                raise ValueError("L'anno non può essere superiore all'anno corrente disponibile.")
+
+            max_month = 12
+            if year_value == max_period_date.year:
+                current_date = datetime.datetime.today()
+                max_month = self._max_available_month_for_yearly_request(current_date)
+                if max_month < 1:
+                    raise ValueError(
+                        f"Per l'anno corrente {year_value} non esistono ancora mesi elaborabili."
+                    )
+
+            return [f"{year_value}{month:02d}" for month in range(1, max_month + 1)]
+
+        raise ValueError("Il periodo deve essere nel formato YYYYMM oppure YYYY.")
+
+    def _process_periods_for_socio(self, socio, periods, config_ds: Option):
+        results = []
+        for single_period in periods:
+            results.append(self.dso_manager.process_data(socio, single_period, config_ds))
+
+        if len(results) == 1:
+            return results[0]
+
+        successful_results = [result for result in results if result.get("success")]
+        output_files = [result.get("output_file") for result in successful_results if result.get("output_file")]
+        success = len(successful_results) == len(results)
+        message = (
+            f"Elaborazione annuale completata per socio {socio}, data sharing {config_ds.code}. "
+            f"Periodi elaborati: {len(successful_results)}/{len(results)}."
+        )
+        return {
+            "success": success,
+            "message": message,
+            "output_file": ";".join(output_files) if output_files else None,
+        }
+
+    def _process_periods_for_all_soci(self, periods, config_ds: Option):
+        processed_count = 0
+        for socio_item in self.dso_manager.get_soci_list():
+            socio_data = self.dso_manager.verify_socio(socio_item)
+            if socio_data is None or socio_data.empty:
+                continue
+            if socio_data[config_ds.campo].iloc[0] != 1:
+                continue
+
+            for single_period in periods:
+                self.dso_manager.process_data(socio_item, single_period, config_ds)
+                processed_count += 1
+
+        return processed_count
+
     def validate_period(self, period, interactive=True):
         while True:
             try:
-                # Parse the period as YYYYMM
-                period_date = datetime.datetime.strptime(period, "%Y%m")
-                # Calculate the maximum allowed date (today minus one month)
-                max_date = datetime.datetime.today().replace(day=1) - datetime.timedelta(days=1)
-                max_date = max_date.replace(day=1)
-                if period_date > max_date:
-                    raise ValueError("Il periodo non può essere superiore a oggi meno un mese.")
+                self._expand_periods(period)
                 return True
             except ValueError as e:
                 self.log.error(f"Errore: {e}")
                 if not interactive:
                     return False
-                period = input("Inserisci nuovamente il periodo (formato: YYYYMM): ")
+                period = input("Inserisci nuovamente il periodo (formato: YYYYMM oppure YYYY): ")
 
     def choose_socio(self):
         while True:
@@ -57,7 +126,7 @@ class DataSharing:
 
     def choose_period(self):
         while True:
-            periodo = input("Inserisci il periodo (formato: YYYYMM): ")
+            periodo = input("Inserisci il periodo (formato: YYYYMM oppure YYYY): ")
             if periodo.upper() == "E":
                 return None
             if self.validate_period(periodo):
@@ -109,7 +178,8 @@ class DataSharing:
         if option is None:
             return
 
-        result = self.dso_manager.process_data(socio, periodo, option)
+        periods = self._expand_periods(periodo)
+        result = self._process_periods_for_socio(socio, periods, option)
 
         # Log the operation
         self.log.info(result["message"])
@@ -117,7 +187,7 @@ class DataSharing:
     def command_line_mode(self):
         parser = argparse.ArgumentParser(description="Data Sharing Script")
         parser.add_argument("--auto", action="store_true", help="Legge i job da una tabella di controllo e li esegue automaticamente")
-        parser.add_argument("--period", help="Periodo obbligatorio (formato: YYYYMM)")
+        parser.add_argument("--period", help="Periodo obbligatorio (formato: YYYYMM oppure YYYY)")
         parser.add_argument("--datasharing", help="Codice del data sharing")
         parser.add_argument("--socio", help="Codice socio (opzionale)")
         parser.add_argument("--code", help="Codice 'CC001' per configurazioni avanzate")
@@ -138,6 +208,7 @@ class DataSharing:
         # Validate period
         if not self.validate_period(periodo, interactive=False):
             return
+        periods = self._expand_periods(periodo)
 
         # Filter data sharing options
         config_ds : Option = None
@@ -159,18 +230,14 @@ class DataSharing:
             campo_value = socio_data[config_ds.campo].iloc[0] if config_ds.campo in socio_data.columns else 0
 
             if campo_value == 1:
-                result = self.dso_manager.process_data(socio, periodo, config_ds)
+                result = self._process_periods_for_socio(socio, periods, config_ds)
                 self.log.info(result["message"])
             else:
                 self.log.warning(f"Il socio {socio} non è abilitato per il data sharing '{datasharing_name}'. Uscita.")
         else:
             # Process for all enabled soci
-            soci_list = self.dso_manager.get_soci_list()
-            for socio_item in soci_list:
-                socio_data = self.dso_manager.verify_socio(socio_item)
-                if socio_data is not None and not socio_data.empty and socio_data[config_ds.campo].iloc[0] == 1:
-                    self.dso_manager.process_data(socio_item, periodo, config_ds)
-            self.log.info("Elaborazione completata per tutti i soci abilitati.")
+            processed_count = self._process_periods_for_all_soci(periods, config_ds)
+            self.log.info(f"Elaborazione completata per tutti i soci abilitati. Esportazioni eseguite: {processed_count}.")
 
     def auto_mode(self):
         processed_jobs = 0
@@ -203,6 +270,7 @@ class DataSharing:
 
                 if not self.validate_period(periodo, interactive=False):
                     raise ValueError(f"Periodo non valido: {periodo}")
+                periods = self._expand_periods(periodo)
 
                 socio_data = self.dso_manager.verify_socio(socio)
                 if socio_data is None or socio_data.empty:
@@ -214,7 +282,7 @@ class DataSharing:
                         f"Il socio {socio} non è abilitato per il data sharing '{datasharing_name}'"
                     )
 
-                result = self.dso_manager.process_data(socio, periodo, config_ds)
+                result = self._process_periods_for_socio(socio, periods, config_ds)
                 self.dso_manager.complete_auto_job(
                     job,
                     result.get("success", False),
@@ -234,7 +302,11 @@ class DataSharing:
             if any(arg.lower() in ["?", "/?", "help", "--help", "aiuto"] for arg in sys.argv):
                 print("USO:")
                 print("--auto: Legge i job da tabella e li elabora automaticamente.")
-                print("--period <YYYYMM> (Obbligatorio, primo parametro): Specifica il periodo in formato YYYYMM.")
+                print("--period <YYYYMM|YYYY> (Obbligatorio, primo parametro):")
+                print("  - YYYYMM genera solo il mese specificato, anche se richiesto esplicitamente prima del giorno 20.")
+                print("  - YYYY genera l'anno completo se è un anno chiuso.")
+                print("  - Se YYYY è l'anno corrente, fino al giorno 19 genera fino a mese corrente meno 2.")
+                print("  - Dal giorno 20 in poi, per YYYY genera fino a mese corrente meno 1.")
                 print("--datasharing <Codice> (Obbligatorio, secondo parametro): Specifica il codice del data sharing.")
                 print("--socio <Codice> (Opzionale, terzo parametro): Specifica il codice socio. Se non fornito, verranno elaborati tutti i soci abilitati.")
                 print("--code <Codice> (Obbligatorio, quarto parametro): Specifica il codice \"CC001\" per configurazioni avanzate.")
@@ -245,8 +317,11 @@ class DataSharing:
                 print("- Se vengono forniti parametri da riga di comando, il programma li utilizza automaticamente.")
                 print("- Se non vengono forniti parametri, il programma entra in modalità interattiva.")
                 print("ESEMPIO DI UTILIZZO:")
-                print("--period 202401 --datasharing \"Vendite\" --socio 12345")
-                print("Questo comando elabora i dati di vendita per il socio con codice 12345 per il periodo di gennaio 2024.")
+                print("--period 202401 --datasharing CC001 --socio 12345")
+                print("Questo comando elabora gennaio 2024 per il socio 12345.")
+                print("--period 2024 --datasharing CC001 --socio 12345")
+                print("Questo comando elabora tutto il 2024 per il socio 12345.")
+                print("Se l'anno indicato è quello corrente, il ciclo include il mese precedente solo dal giorno 20 del mese attuale.")
                 return
             self.command_line_mode()
         else:

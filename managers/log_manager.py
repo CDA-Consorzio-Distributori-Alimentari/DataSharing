@@ -1,5 +1,4 @@
 import logging
-import os
 from pathlib import Path
 
 
@@ -47,12 +46,10 @@ class LogManager:
             return default_log_file.with_name(log_path.name)
 
         try:
-            if log_path.parent.exists() and log_path.parent.is_dir() and os.access(log_path.parent, os.R_OK | os.W_OK):
-                return log_path
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            return log_path
         except OSError:
-            pass
-
-        return cls._default_log_file().with_name(log_path.name)
+            return cls._default_log_file().with_name(log_path.name)
 
     def _configure_console_handler(self, level, formatter):
         console_handlers = [

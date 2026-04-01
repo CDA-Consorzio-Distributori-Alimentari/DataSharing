@@ -13,6 +13,7 @@ from .excel_manager import ExcelManager
 import json
 import pandas as pd  # Ensure pandas is imported
 import os
+from pathlib import Path
 
 class DataSharingOwnerManager:
     def __init__(self):
@@ -59,14 +60,18 @@ class DataSharingOwnerManager:
             "output_file": output_file,
         }
 
-    def _build_output_file_path(self, config_ds: Option):
+    def _build_output_directory(self, socio, config_ds: Option):
+        output_dir = os.path.join(self.config.output_path, str(socio).strip(), config_ds.code)
+        os.makedirs(output_dir, exist_ok=True)
+        return output_dir
+
+    def _build_output_file_path(self, socio, config_ds: Option):
         extension_map = {
             "csv": ".csv",
             "excel": ".xlsx",
         }
         extension = extension_map.get(config_ds.file_type, f".{config_ds.file_type}")
-        output_dir = os.path.join(self.config.output_path, config_ds.file_type)
-        os.makedirs(output_dir, exist_ok=True)
+        output_dir = self._build_output_directory(socio, config_ds)
 
         current_datetime = datetime.now()
         naming_convention = getattr(config_ds, "naming_convention", None)
@@ -80,6 +85,26 @@ class DataSharingOwnerManager:
             naming_convention = f"{naming_convention}{extension}"
 
         return os.path.join(output_dir, naming_convention)
+
+    def _resolve_query_file_path(self, config_ds: Option, query_file: str):
+        if os.path.isabs(query_file):
+            return query_file
+
+        query_root = Path(self.config.querysql_path)
+        configured_query_path = Path(query_file)
+
+        candidate_paths = []
+        if configured_query_path.parent != Path("."):
+            candidate_paths.append((query_root / configured_query_path).resolve(strict=False))
+        else:
+            candidate_paths.append((query_root / config_ds.code / configured_query_path.name).resolve(strict=False))
+            candidate_paths.append((query_root / configured_query_path.name).resolve(strict=False))
+
+        for candidate_path in candidate_paths:
+            if candidate_path.exists():
+                return str(candidate_path)
+
+        return str(candidate_paths[0])
 
     @property
     def ftp_manager(self):
@@ -153,8 +178,7 @@ class DataSharingOwnerManager:
             # Se la configurazione non specifica il file SQL, uso la convenzione
             # basata sul nome dell'export.
             query_file = f"{config_ds.name.lower().replace(' ', '_')}_query.sql"
-        if not os.path.isabs(query_file):
-            query_file = os.path.abspath(os.path.join(self.config.querysql_path, query_file))
+        query_file = self._resolve_query_file_path(config_ds, query_file)
         
 
         # Read SQL query from file
@@ -182,18 +206,18 @@ class DataSharingOwnerManager:
         # Dispatch sull'export richiesto: XML, CSV o Excel.
         if config_ds.file_type == 'xml':
             try:
-                self.xml_manager.create_xml(database_results, config_ds, periodo)
+                self.xml_manager.create_xml(database_results, config_ds, periodo, socio)
                 output_file = self.xml_manager.last_output_file
             except FileNotFoundError as exc:
                 message = str(exc)
                 self.log.error(message)
                 return self._build_result(False, message)
         elif config_ds.file_type == 'csv':
-            output_file = self._build_output_file_path(config_ds)
+            output_file = self._build_output_file_path(socio, config_ds)
             csv_rows = [database_results.columns.tolist(), *database_results.values.tolist()]
             self.csv_manager.write_csv(output_file, csv_rows)
         elif config_ds.file_type == 'excel':
-            output_file = self._build_output_file_path(config_ds)
+            output_file = self._build_output_file_path(socio, config_ds)
             excel_rows = [database_results.columns.tolist(), *database_results.values.tolist()]
             self.excel_manager.create_workbook(output_file)
             self.excel_manager.write_to_sheet(output_file, 'Sheet1', excel_rows)

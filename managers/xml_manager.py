@@ -4,6 +4,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from numbers import Number
 import os
 import re
+from pathlib import Path
 
 import pandas as pd
 from lxml import etree
@@ -19,9 +20,13 @@ class XMLManager:
         self.config = config
         self.last_output_file = None
 
-    def _save_xml(self, xml_content, option: Option):
-        output_dir = os.path.join(self.config._output_path, "xml")
+    def _build_output_directory(self, socio, option: Option):
+        output_dir = os.path.join(self.config.output_path, str(socio).strip(), option.code)
         os.makedirs(output_dir, exist_ok=True)
+        return output_dir
+
+    def _save_xml(self, xml_content, option: Option, socio):
+        output_dir = self._build_output_directory(socio, option)
 
         current_datetime = datetime.now()
         placeholders = {key: current_datetime.strftime(fmt) for key, fmt in self.config.placeholders.items()}
@@ -65,20 +70,46 @@ class XMLManager:
 
     def _resolve_template_path(self, option: Option) -> str:
         template_path = getattr(option, "xslt_template", None)
-        template_root = self.config.template_path
+        template_root = Path(self.config.template_path)
         if template_path:
             if os.path.isabs(template_path):
                 return template_path
-            return os.path.abspath(os.path.join(template_root, template_path))
+
+            configured_template_path = Path(template_path)
+            if configured_template_path.parent != Path("."):
+                return str((template_root / configured_template_path).resolve(strict=False))
+
+            candidate_paths = [
+                (template_root / option.code / configured_template_path.name).resolve(strict=False),
+                (template_root / configured_template_path.name).resolve(strict=False),
+            ]
+            for candidate_path in candidate_paths:
+                if candidate_path.exists():
+                    return str(candidate_path)
+
+            return str(candidate_paths[0])
 
         candidates = []
-        for root_dir, dir_names, file_names in os.walk(template_root):
-            dir_names[:] = [name for name in dir_names if name.lower() != "old"]
-            for file_name in file_names:
-                if not file_name.lower().endswith(".xslt"):
-                    continue
-                full_path = os.path.join(root_dir, file_name)
-                candidates.append((full_path, self._normalize_name(file_name)))
+        preferred_root = (template_root / option.code).resolve(strict=False)
+        search_roots = []
+        if preferred_root.exists():
+            search_roots.append(preferred_root)
+        search_roots.append(template_root)
+
+        visited_roots = set()
+        for search_root in search_roots:
+            normalized_root = str(search_root)
+            if normalized_root in visited_roots:
+                continue
+            visited_roots.add(normalized_root)
+
+            for root_dir, dir_names, file_names in os.walk(search_root):
+                dir_names[:] = [name for name in dir_names if name.lower() != "old"]
+                for file_name in file_names:
+                    if not file_name.lower().endswith(".xslt"):
+                        continue
+                    full_path = os.path.join(root_dir, file_name)
+                    candidates.append((full_path, self._normalize_name(file_name)))
 
         if not candidates:
             raise FileNotFoundError(f"Nessun file XSLT trovato nella cartella template: {template_root}")
@@ -494,7 +525,7 @@ class XMLManager:
         xslt_path = self._resolve_template_path(option)
         return self._transform_with_xslt(source_root, xslt_path)
 
-    def create_xml(self, db_content: pd.DataFrame, params: Option, periodo: str):
+    def create_xml(self, db_content: pd.DataFrame, params: Option, periodo: str, socio):
         transformed_data = self._generate_clean_xml(db_content, params, periodo)
-        self._save_xml(transformed_data, params)
+        self._save_xml(transformed_data, params, socio)
         return transformed_data
