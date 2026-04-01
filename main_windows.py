@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 import math
 from datetime import datetime
+import json
 
 from services.data_sharing_runtime import DataSharingRuntime
 
@@ -52,6 +53,9 @@ class DataSharingWindowsApp:
         self.root.title(f"DataSharing {self.backend.config.version}")
         self.root.geometry("1120x760")
         self.root.minsize(960, 680)
+        self.style = ttk.Style()
+        self.normal_background = self.style.lookup("TFrame", "background") or "#f0f0f0"
+        self.debug_background = "#fff7cc"
 
         self.selected_option = None
         self.available_soci = []
@@ -64,14 +68,38 @@ class DataSharingWindowsApp:
         self.socio_filter_var = tk.StringVar()
         self.status_var = tk.StringVar(value="Seleziona un data sharing per iniziare.")
         self.release_var = tk.StringVar(value=f"Release {self.backend.config.version}")
+        self.debug_var = tk.BooleanVar(value=bool(self.backend.config.debug))
         self.progress_var = tk.DoubleVar(value=0)
         self.progress_text_var = tk.StringVar(value="0%")
         self._period_validation_in_progress = False
         self._last_period_error = ""
         self._last_run_started_at = None
 
+        self._configure_styles()
         self._build_ui()
         self._load_datasharing_options()
+        self._apply_debug_theme()
+
+    def _configure_styles(self):
+        self.style.configure("TFrame", background=self.normal_background)
+        self.style.configure("TLabelframe", background=self.normal_background)
+        self.style.configure("TLabelframe.Label", background=self.normal_background)
+        self.style.configure("TLabel", background=self.normal_background)
+        self.style.configure("TCheckbutton", background=self.normal_background)
+        self.style.configure("TRadiobutton", background=self.normal_background)
+
+    def _apply_debug_theme(self):
+        background = self.debug_background if self.debug_var.get() else self.normal_background
+        self.root.configure(bg=background)
+        self.style.configure("TFrame", background=background)
+        self.style.configure("TLabelframe", background=background)
+        self.style.configure("TLabelframe.Label", background=background)
+        self.style.configure("TLabel", background=background)
+        self.style.configure("TCheckbutton", background=background)
+        self.style.configure("TRadiobutton", background=background)
+
+        if hasattr(self, "soci_canvas"):
+            self.soci_canvas.configure(background=background)
 
     def _build_ui(self):
         container = ttk.Frame(self.root, padding=16)
@@ -79,19 +107,35 @@ class DataSharingWindowsApp:
         container.columnconfigure(0, weight=1)
         container.rowconfigure(5, weight=1)
 
+        header_frame = ttk.Frame(container)
+        header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+        header_frame.columnconfigure(0, weight=1)
+
         header = ttk.Label(
-            container,
+            header_frame,
             text="DataSharing - CDA",
             font=("Segoe UI", 16, "bold"),
         )
-        header.grid(row=0, column=0, sticky="w", pady=(0, 12))
+        header.grid(row=0, column=0, sticky="w")
+
+        header_right_frame = ttk.Frame(header_frame)
+        header_right_frame.grid(row=0, column=1, sticky="e")
+
+        self.debug_checkbutton = ttk.Checkbutton(
+            header_right_frame,
+            text="DEBUG",
+            variable=self.debug_var,
+            command=self._on_debug_toggled,
+        )
+        self.debug_checkbutton.pack(side="right")
+        ToolTip(self.debug_checkbutton, "Aggiorna il flag DEBUG nel config.json e colora la finestra in giallino quando attivo.")
 
         release_label = ttk.Label(
-            container,
+            header_right_frame,
             textvariable=self.release_var,
             font=("Segoe UI", 10, "italic"),
         )
-        release_label.grid(row=0, column=0, sticky="e", pady=(0, 12))
+        release_label.pack(side="right", padx=(0, 12))
 
         selection_frame = ttk.LabelFrame(container, text="Parametri elaborazione", padding=12)
         selection_frame.grid(row=1, column=0, sticky="nsew")
@@ -231,6 +275,36 @@ class DataSharingWindowsApp:
         self.datasharing_var.set("")
         self.selected_option = None
         self.status_var.set("Seleziona un data sharing per iniziare.")
+
+    def _save_debug_flag(self, is_debug_enabled):
+        config_path = self.backend.config.configs_file
+        with open(config_path, "r", encoding="utf-8") as file:
+            config_data = json.load(file)
+
+        config_data["DEBUG"] = bool(is_debug_enabled)
+
+        with open(config_path, "w", encoding="utf-8") as file:
+            json.dump(config_data, file, indent=4, ensure_ascii=False)
+            file.write("\n")
+
+    def _sync_runtime_debug(self, is_debug_enabled):
+        self.backend.config._debug = bool(is_debug_enabled)
+        self.backend.dso_manager.config._debug = bool(is_debug_enabled)
+
+        if getattr(self.backend.dso_manager, "_coca_cola_tracking_manager", None) is not None:
+            self.backend.dso_manager._coca_cola_tracking_manager.debug_enabled = bool(is_debug_enabled)
+
+    def _on_debug_toggled(self):
+        requested_value = bool(self.debug_var.get())
+        try:
+            self._save_debug_flag(requested_value)
+            self._sync_runtime_debug(requested_value)
+            self._apply_debug_theme()
+            self.status_var.set(f"Modalità DEBUG {'attiva' if requested_value else 'disattiva'}." )
+        except Exception as exc:
+            self.debug_var.set(not requested_value)
+            self._apply_debug_theme()
+            messagebox.showerror("DEBUG", f"Impossibile aggiornare il flag DEBUG: {exc}", parent=self.root)
 
     @staticmethod
     def _format_option_label(option):
@@ -494,6 +568,7 @@ class DataSharingWindowsApp:
 
         self.datasharing_combo.configure(state=combo_state)
         self.period_entry.configure(state=state)
+        self.debug_checkbutton.configure(state=state)
         for child in self.soci_frame.winfo_children():
             try:
                 child.configure(state=state)
