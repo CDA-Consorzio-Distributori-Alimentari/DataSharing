@@ -137,6 +137,9 @@ Esempio di configurazione per un nuovo data sharing XML:
     "password": "ftp_password",
     "port": 21
   },
+  "naming_variables": {
+    "TRACK_ID": "1"
+  },
   "naming_convention": "NEW_CUSTOMER_YYYYMMDDhhmmss"
 }
 ```
@@ -146,6 +149,64 @@ Nota sui path nel JSON:
 - `query_file` puo essere solo il nome file se il file si trova in `querysql/{COD_datasharing}`
 - `xslt_template` puo essere solo il nome file se il template si trova in `templatexml/{COD_datasharing}`
 - se serve, entrambi possono anche essere configurati con path assoluti
+
+### Placeholder ufficiali in naming_convention
+
+`naming_convention` supporta due famiglie di placeholder:
+
+- placeholder data legacy gia presenti in `config.placeholders`, ad esempio `YYYYMMDDhhmmss`
+- placeholder nominati nel formato `{NOME_CAMPO}`
+
+Placeholder nominati ufficialmente supportati:
+
+- `{SOCIO}`: codice socio richiesto
+- `{PERIODO}`: periodo richiesto nel formato `YYYYMM`
+- `{YYYY_PERIODO}`: anno del periodo richiesto
+- `{MM_PERIODO}`: mese del periodo richiesto
+- `{DATASHARING_CODE}`: codice del data sharing, ad esempio `CC001`
+- `{FILE_TYPE}`: tipo file, ad esempio `xml` o `csv`
+- `{NOME_COLONNA_QUERY}`: qualunque colonna disponibile nel primo record della query, ad esempio `{WholesalerID}`
+- `{NOME_VARIABILE}`: qualunque variabile definita in `naming_variables`
+
+### naming_variables
+
+`naming_variables` è opzionale e serve solo per costanti di tracciato o varianti che non arrivano dalla query.
+
+Esempio:
+
+```json
+"naming_variables": {
+  "TRACK_ID": "1"
+}
+```
+
+### Convenzione consigliata
+
+Per convenzioni stabili e leggibili, usa questo schema:
+
+```json
+"naming_convention": "{WholesalerID}_{MM_PERIODO}_{YYYY_PERIODO}_1"
+```
+
+Esempi:
+
+```json
+{
+  "code": "CC001",
+  "naming_convention": "{WholesalerID}_{MM_PERIODO}_{YYYY_PERIODO}_1"
+}
+```
+
+```json
+{
+  "code": "CC002",
+  "naming_convention": "{WholesalerID}_{MM_PERIODO}_{YYYY_PERIODO}_2"
+}
+```
+
+Se il suffisso è fisso, mettilo direttamente nel `naming_convention` invece di usare `naming_variables`.
+
+Questa convenzione vale in modo uniforme per XML, CSV ed Excel.
 
 ## 6. Cosa Va Nella Query SQL
 

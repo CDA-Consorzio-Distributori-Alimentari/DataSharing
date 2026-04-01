@@ -17,12 +17,13 @@
                 "Sales/Transaction": ["CodiceClienteCDA"]
             },
             "ftp_config": {
-                "host": "ftp.example.com",
-                "user": "ftp_user",
-                "password": "ftp_password",
-                "port": 21
+                "host": "connecta.uvesolutions.com",
+                "user": "Agent-7614",
+                "password": "13damare08!",
+                "port": 21,
+                "create_ok_file": true
             },
-            "naming_convention": "CWHS_CodiceSAPCocaCola_2_YYYYMMDDhhmmss"
+            "naming_convention": "{WholesalerID}_{MM_PERIODO}_{YYYY_PERIODO}_1"
         },
         {
             "code": "CC002",
@@ -41,12 +42,13 @@
                 "Sales/Transaction": ["CodiceClienteSocio"]
             },
             "ftp_config": {
-                "host": "ftp.example.com",
-                "user": "ftp_user",
-                "password": "ftp_password",
-                "port": 21
+                "host": "connecta.uvesolutions.com",
+                "user": "Agent-7614",
+                "password": "13damare08!",
+                "port": 21,
+                "create_ok_file": true
             },
-            "naming_convention": "CWHS_CodiceSAPCocaColaV2_2_YYYYMMDDhhmmss"
+            "naming_convention": "{WholesalerID}_{MM_PERIODO}_{YYYY_PERIODO}_2"
         },
         {
             "code": "CA001",
@@ -55,10 +57,11 @@
             "file_type": "xml",
             "delivery_method": "ftp",
             "ftp_config": {
-                "host": "ftp.example.com",
-                "user": "ftp_user",
-                "password": "ftp_password",
-                "port": 21
+                "host": "connecta.uvesolutions.com",
+                "user": "Agent-7614",
+                "password": "13damare08!",
+                "port": 21,
+                "create_ok_file": true
             },
             "parameters": {
                 "DateFrom": "",
@@ -101,6 +104,17 @@
         }
     ],
     "db_path": "data_sharing.db",
+    "supported_file_types": [
+        "xml",
+        "csv",
+        "excel"
+    ],
+    "supported_delivery_methods": [
+        "ftp",
+        "azure_storage",
+        "nasshare",
+        "mail"
+    ],
     "ftp_config": {
         "host": "ftp.example.com",
         "user": "ftp_user",

@@ -20,25 +20,9 @@ class XMLManager:
         self.config = config
         self.last_output_file = None
 
-    def _build_output_directory(self, socio, option: Option):
-        output_dir = os.path.join(self.config.output_path, str(socio).strip(), option.code)
-        os.makedirs(output_dir, exist_ok=True)
-        return output_dir
-
-    def _save_xml(self, xml_content, option: Option, socio):
-        output_dir = self._build_output_directory(socio, option)
-
-        current_datetime = datetime.now()
-        placeholders = {key: current_datetime.strftime(fmt) for key, fmt in self.config.placeholders.items()}
-
-        naming_convention = option.naming_convention
-        for placeholder, value in placeholders.items():
-            naming_convention = naming_convention.replace(placeholder, value)
-
-        if not naming_convention.lower().endswith(".xml"):
-            naming_convention = f"{naming_convention}.xml"
-
-        full_path = os.path.join(output_dir, naming_convention)
+    def _save_xml(self, xml_content, output_file_path):
+        full_path = output_file_path
+        Path(full_path).parent.mkdir(parents=True, exist_ok=True)
         if os.path.exists(full_path):
             os.remove(full_path)
 
@@ -525,7 +509,10 @@ class XMLManager:
         xslt_path = self._resolve_template_path(option)
         return self._transform_with_xslt(source_root, xslt_path)
 
-    def create_xml(self, db_content: pd.DataFrame, params: Option, periodo: str, socio):
-        transformed_data = self._generate_clean_xml(db_content, params, periodo)
-        self._save_xml(transformed_data, params, socio)
+    def build_xml_content(self, db_content: pd.DataFrame, params: Option, periodo: str):
+        return self._generate_clean_xml(db_content, params, periodo)
+
+    def create_xml(self, db_content: pd.DataFrame, params: Option, periodo: str, output_file_path):
+        transformed_data = self.build_xml_content(db_content, params, periodo)
+        self._save_xml(transformed_data, output_file_path)
         return transformed_data

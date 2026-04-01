@@ -3,7 +3,7 @@
 import os
 from azure.storage.blob import BlobServiceClient
 from datetime import datetime
-from .log_manager import LogManager
+from ..log_manager import LogManager
 
 class AzureStorageManager:
     def __init__(self, sas_url, log_manager=None):

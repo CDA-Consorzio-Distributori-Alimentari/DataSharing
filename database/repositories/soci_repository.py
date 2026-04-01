@@ -16,6 +16,7 @@ class SociRepository(BaseRepository):
             self.TABLE_NAME,
             metadata,
             sqlalchemy.Column("TC_Soci_Codice", sqlalchemy.String, primary_key=True),
+            sqlalchemy.Column("TC_Soci_Polo", sqlalchemy.Integer),
             sqlalchemy.Column("TC_Tipo_Clientela_Codice", sqlalchemy.String),
             sqlalchemy.Column("TC_Soci_Ragione_Sociale", sqlalchemy.String),
             sqlalchemy.Column("TC_Soci_CocaCola_Attivo", sqlalchemy.Integer),

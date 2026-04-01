@@ -1,10 +1,11 @@
 import importlib
+from datetime import datetime
 
 import pandas as pd
 import pyodbc
 
 from services.config import Config
-from .repositories import AutoExecutionRepository, SociRepository
+from .repositories import AutoExecutionRepository, CocaColaTrackingRepository, SociRepository
 
 
 class DBManager:
@@ -17,6 +18,7 @@ class DBManager:
         self._sqlalchemy_modules = None
         self._sqlalchemy_session_factory = None
         self._soci_repository = None
+        self._coca_cola_tracking_repository = None
 
     def _log_warning(self, message):
         if self.log_manager is not None:
@@ -134,6 +136,11 @@ class DBManager:
             self._auto_execution_repository = AutoExecutionRepository(self, auto_config)
         return self._auto_execution_repository
 
+    def _get_coca_cola_tracking_repository(self):
+        if self._coca_cola_tracking_repository is None:
+            self._coca_cola_tracking_repository = CocaColaTrackingRepository(self)
+        return self._coca_cola_tracking_repository
+
     def claim_next_auto_job(self, auto_config):
         return self._get_auto_execution_repository(auto_config).claim_next_job()
 
@@ -144,6 +151,38 @@ class DBManager:
             output_file=output_file,
             message=message,
         )
+
+    def add_coca_cola_tracking_entry(self, values):
+        entry_values = dict(values)
+        entry_values.setdefault("created_at", datetime.now())
+        try:
+            self._get_coca_cola_tracking_repository().add_entry(entry_values)
+        except ModuleNotFoundError:
+            column_names = CocaColaTrackingRepository.COLUMN_NAMES
+            table_name = f"{CocaColaTrackingRepository.TABLE_SCHEMA}.{CocaColaTrackingRepository.TABLE_NAME}"
+            insert_query = f"""
+                INSERT INTO {table_name} (
+                    [{column_names['socio_code']}],
+                    [{column_names['socio_polo']}],
+                    [{column_names['wholesaler_id']}],
+                    [{column_names['period']}],
+                    [{column_names['flow_number']}],
+                    [{column_names['log']}],
+                    [{column_names['created_at']}]
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """
+            self.execute_non_query(
+                insert_query,
+                [
+                    entry_values.get("socio_code"),
+                    entry_values.get("socio_polo"),
+                    entry_values.get("wholesaler_id"),
+                    entry_values.get("period"),
+                    entry_values.get("flow_number"),
+                    entry_values.get("log"),
+                    entry_values.get("created_at"),
+                ],
+            )
 
     def verify_socio(self, socio):
         try:
