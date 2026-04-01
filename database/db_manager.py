@@ -5,7 +5,7 @@ import pandas as pd
 import pyodbc
 
 from services.config import Config
-from .repositories import AutoExecutionRepository, CocaColaTrackingRepository, SociRepository
+from .repositories import CocaColaTrackingRepository, SociRepository
 
 
 class DBManager:
@@ -13,7 +13,6 @@ class DBManager:
         config = Config()
         self.connection_string = config.get_connection_string()
         self.log_manager = log_manager
-        self._auto_execution_repository = None
         self._sqlalchemy_engine = None
         self._sqlalchemy_modules = None
         self._sqlalchemy_session_factory = None
@@ -131,49 +130,64 @@ class DBManager:
             self._soci_repository = SociRepository(self)
         return self._soci_repository
 
-    def _get_auto_execution_repository(self, auto_config):
-        if self._auto_execution_repository is None:
-            self._auto_execution_repository = AutoExecutionRepository(self, auto_config)
-        return self._auto_execution_repository
-
-    def _get_coca_cola_tracking_repository(self):
+    def _get_coca_cola_tracking_repository(self, tracking_config=None):
         if self._coca_cola_tracking_repository is None:
-            self._coca_cola_tracking_repository = CocaColaTrackingRepository(self)
+            self._coca_cola_tracking_repository = CocaColaTrackingRepository(self, tracking_config)
         return self._coca_cola_tracking_repository
 
-    def claim_next_auto_job(self, auto_config):
-        return self._get_auto_execution_repository(auto_config).claim_next_job()
-
-    def complete_auto_job(self, auto_config, job, status, output_file=None, message=None):
-        self._get_auto_execution_repository(auto_config).complete_job(
-            job,
-            status,
-            output_file=output_file,
-            message=message,
-        )
-
-    def add_coca_cola_tracking_entry(self, values):
+    def add_coca_cola_tracking_entry(self, values, tracking_config=None):
         entry_values = dict(values)
         entry_values.setdefault("created_at", datetime.now())
+        repository = self._get_coca_cola_tracking_repository(tracking_config)
         try:
-            self._get_coca_cola_tracking_repository().add_entry(entry_values)
+            repository.upsert_entry(entry_values)
         except ModuleNotFoundError:
-            column_names = CocaColaTrackingRepository.COLUMN_NAMES
-            table_name = f"{CocaColaTrackingRepository.TABLE_SCHEMA}.{CocaColaTrackingRepository.TABLE_NAME}"
-            insert_query = f"""
-                INSERT INTO {table_name} (
-                    [{column_names['socio_code']}],
-                    [{column_names['socio_polo']}],
-                    [{column_names['wholesaler_id']}],
-                    [{column_names['period']}],
-                    [{column_names['flow_number']}],
-                    [{column_names['log']}],
-                    [{column_names['created_at']}]
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            column_names = repository.column_names
+            table_name = f"{repository.table_schema}.{repository.table_name}"
+            upsert_query = f"""
+                UPDATE {table_name}
+                SET
+                    [{column_names['socio_polo']}] = ?,
+                    [{column_names['wholesaler_id']}] = ?,
+                    [{column_names['log']}] = CASE
+                        WHEN NULLIF([{column_names['log']}], '') IS NULL THEN ?
+                        WHEN NULLIF(?, '') IS NULL THEN [{column_names['log']}]
+                        ELSE [{column_names['log']}] + '  ' + ?
+                    END,
+                    [{column_names['created_at']}] = ?
+                WHERE [{column_names['socio_code']}] = ?
+                                    AND [{column_names['socio_polo']}] = ?
+                                    AND [{column_names['wholesaler_id']}] = ?
+                  AND [{column_names['period']}] = ?
+                  AND [{column_names['flow_number']}] = ?;
+
+                IF @@ROWCOUNT = 0
+                BEGIN
+                    INSERT INTO {table_name} (
+                        [{column_names['socio_code']}],
+                        [{column_names['socio_polo']}],
+                        [{column_names['wholesaler_id']}],
+                        [{column_names['period']}],
+                        [{column_names['flow_number']}],
+                        [{column_names['log']}],
+                        [{column_names['created_at']}]
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                END
             """
             self.execute_non_query(
-                insert_query,
+                upsert_query,
                 [
+                    entry_values.get("socio_polo"),
+                    entry_values.get("wholesaler_id"),
+                    entry_values.get("log"),
+                    entry_values.get("log"),
+                    entry_values.get("log"),
+                    entry_values.get("created_at"),
+                    entry_values.get("socio_code"),
+                    entry_values.get("socio_polo"),
+                    entry_values.get("wholesaler_id"),
+                    entry_values.get("period"),
+                    entry_values.get("flow_number"),
                     entry_values.get("socio_code"),
                     entry_values.get("socio_polo"),
                     entry_values.get("wholesaler_id"),

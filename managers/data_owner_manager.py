@@ -29,29 +29,6 @@ class DataSharingOwnerManager:
         self.log = LogManager(self.config.log_file, self.config.log_level)
         self.db_manager = DBManager(self.log)
 
-    def get_auto_execution_config(self):
-        return getattr(self.config, "auto_execution", {}) or {}
-
-    def claim_next_auto_job(self):
-        auto_config = self.get_auto_execution_config()
-        if not auto_config:
-            raise ValueError("Configurazione auto_execution mancante in config.json")
-        return self.db_manager.claim_next_auto_job(auto_config)
-
-    def complete_auto_job(self, job, success, output_file=None, message=None):
-        auto_config = self.get_auto_execution_config()
-        if not auto_config:
-            raise ValueError("Configurazione auto_execution mancante in config.json")
-        ok_status = auto_config.get("status_ok", "OK")
-        ko_status = auto_config.get("status_ko", "KO")
-        self.db_manager.complete_auto_job(
-            auto_config,
-            job,
-            ok_status if success else ko_status,
-            output_file=output_file,
-            message=message,
-        )
-
     def _build_result(self, success, message, output_file=None):
         return {
             "success": success,
@@ -221,7 +198,11 @@ class DataSharingOwnerManager:
     @property
     def coca_cola_tracking_manager(self):
         if self._coca_cola_tracking_manager is None:
-            self._coca_cola_tracking_manager = CocaColaTrackingManager(self.db_manager, self.log)
+            self._coca_cola_tracking_manager = CocaColaTrackingManager(
+                self.db_manager,
+                getattr(self.config, "coca_cola_tracking", {}),
+                self.log,
+            )
         return self._coca_cola_tracking_manager
 
     @property

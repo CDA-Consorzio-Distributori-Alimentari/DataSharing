@@ -14,14 +14,23 @@ class CocaColaTrackingSession:
 
 
 class CocaColaTrackingManager:
-    TRACKED_CODES = {"CC001", "CC002"}
+    DEFAULT_TRACKED_CODES = {"CC001", "CC002"}
 
-    def __init__(self, db_manager, log_manager=None):
+    def __init__(self, db_manager, tracking_config=None, log_manager=None):
         self.db_manager = db_manager
+        self.tracking_config = tracking_config or {}
         self.log = log_manager
 
     def supports(self, config_ds):
-        return getattr(config_ds, "code", None) in self.TRACKED_CODES
+        if not self.tracking_config.get("enabled", True):
+            return False
+
+        tracked_codes = {
+            str(code).strip()
+            for code in self.tracking_config.get("tracked_codes", self.DEFAULT_TRACKED_CODES)
+            if str(code).strip()
+        }
+        return getattr(config_ds, "code", None) in tracked_codes
 
     def start_session(self, socio, periodo, config_ds, socio_data):
         session = CocaColaTrackingSession(
@@ -35,10 +44,10 @@ class CocaColaTrackingManager:
         return session
 
     def append(self, session, message):
-        session.log_entries.append(f"<{message}     {datetime.now().strftime('%H:%M:%S')}>")
+        session.log_entries.append(f"<{message}   {datetime.now().strftime('%H:%M:%S')}>")
 
     def persist(self, session, output_file=None):
-        socio_row = session.socio_data.iloc[0] if session.socio_data is not None and not session.socio_data.empty else {}
+        socio_row = self._get_socio_row(session.socio_data)
         self.db_manager.add_coca_cola_tracking_entry(
             {
                 "socio_code": int(socio_row.get("TC_Soci_Codice", session.socio)),
@@ -47,17 +56,30 @@ class CocaColaTrackingManager:
                 "period": int(session.periodo),
                 "flow_number": self._resolve_flow_number(output_file) if output_file else 1,
                 "log": "  ".join(session.log_entries),
-            }
+            },
+            tracking_config=self.tracking_config,
         )
 
     def _build_socio_process_log(self, socio, socio_data):
-        if socio_data is None or (hasattr(socio_data, "empty") and socio_data.empty):
+        socio_row = self._get_socio_row(socio_data)
+        if not socio_row:
             return f"Socio     {socio}"
 
-        wholesaler_id = str(socio_data.get("TC_Soci_CocaCola_Codice", "") or "").strip()
-        socio_code = str(socio_data.get("TC_Soci_Codice", socio) or "").strip()
-        social_name = str(socio_data.get("TC_Soci_Ragione_Sociale", "") or "").strip()
-        return f"Socio     {wholesaler_id} {socio_code} {social_name}".strip()
+        wholesaler_id = str(socio_row.get("TC_Soci_CocaCola_Codice", "") or "").strip()
+        socio_code = str(socio_row.get("TC_Soci_Codice", socio) or "").strip()
+        socio_polo = str(socio_row.get("TC_Soci_Polo", "") or "").strip()
+        social_name = str(socio_row.get("TC_Soci_Ragione_Sociale", "") or "").strip()
+        return f"Socio     {wholesaler_id} {socio_code} {socio_polo} {social_name}".strip()
+
+    @staticmethod
+    def _get_socio_row(socio_data):
+        if socio_data is None:
+            return {}
+        if hasattr(socio_data, "empty") and socio_data.empty:
+            return {}
+        if hasattr(socio_data, "iloc"):
+            return socio_data.iloc[0]
+        return socio_data
 
     @staticmethod
     def _resolve_flow_number(output_file):

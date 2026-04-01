@@ -104,8 +104,8 @@ class Config:
         return self._connection_string["command_timeout"]
 
     @property
-    def auto_execution(self):
-        return self._auto_execution
+    def coca_cola_tracking(self):
+        return self._coca_cola_tracking
 
     def _get_project_root(self):
         return Path(__file__).resolve().parent.parent
@@ -231,8 +231,14 @@ class Config:
                 "password": "email_password",
             },
         )
-        self._auto_execution = config_data.get("auto_execution", {})
-
+        self._coca_cola_tracking = config_data.get(
+            "coca_cola_tracking",
+            {
+                "enabled": True,
+                "table": "dbo.tc_Coca_Cola",
+                "tracked_codes": ["CC001", "CC002"],
+            },
+        )
         connection_string = config_data.get("connection_string", {})
         self._connection_string = {
             "data_source": connection_string.get("data_source", "DWH"),

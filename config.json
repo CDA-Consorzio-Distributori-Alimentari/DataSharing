@@ -137,20 +137,10 @@
         "command_timeout": 0,
         "database": "cda"
     },
-    "auto_execution": {
-        "table": "dbo.DataSharingAutoExecution",
-        "status_column": "status",
-        "socio_column": "socio",
-        "period_column": "periodo",
-        "datasharing_column": "datasharing",
-        "timestamp_column": "timestamp",
-        "filename_column": "filename",
-        "message_column": "message",
-        "order_by_column": "periodo",
-        "status_pending": "INS",
-        "status_running": "RUN",
-        "status_ok": "OK",
-        "status_ko": "KO"
+    "coca_cola_tracking": {
+        "enabled": true,
+        "table": "dbo.tc_Coca_Cola",
+        "tracked_codes": ["CC001", "CC002"]
     },
     "artifacts_root_path": "DataSharingShare",
     "log": {

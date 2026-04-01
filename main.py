@@ -186,19 +186,14 @@ class DataSharing:
 
     def command_line_mode(self):
         parser = argparse.ArgumentParser(description="Data Sharing Script")
-        parser.add_argument("--auto", action="store_true", help="Legge i job da una tabella di controllo e li esegue automaticamente")
         parser.add_argument("--period", help="Periodo obbligatorio (formato: YYYYMM oppure YYYY)")
         parser.add_argument("--datasharing", help="Codice del data sharing")
         parser.add_argument("--socio", help="Codice socio (opzionale)")
         parser.add_argument("--code", help="Codice 'CC001' per configurazioni avanzate")
         args = parser.parse_args()
 
-        if args.auto:
-            self.auto_mode()
-            return
-
         if not args.period or not args.datasharing:
-            parser.error("--period e --datasharing sono obbligatori se non usi --auto")
+            parser.error("--period e --datasharing sono obbligatori")
 
         socio_data = None
         socio = args.socio
@@ -239,69 +234,11 @@ class DataSharing:
             processed_count = self._process_periods_for_all_soci(periods, config_ds)
             self.log.info(f"Elaborazione completata per tutti i soci abilitati. Esportazioni eseguite: {processed_count}.")
 
-    def auto_mode(self):
-        processed_jobs = 0
-        while True:
-            job = self.dso_manager.claim_next_auto_job()
-            if not job:
-                if processed_jobs == 0:
-                    self.log.info("Nessun job in stato INS da elaborare.")
-                else:
-                    self.log.info(f"Elaborazione automatica completata. Job processati: {processed_jobs}.")
-                return
-
-            socio = str(job.get("socio", "")).strip()
-            periodo = str(job.get("periodo", "")).strip()
-            datasharing_name = str(job.get("datasharing", "")).strip()
-
-            self.log.info(
-                f"Avvio job automatico socio={socio}, periodo={periodo}, datasharing={datasharing_name}."
-            )
-
-            try:
-                config_ds: Option = None
-                for option in self.ds_option.options:
-                    if option.code == datasharing_name:
-                        config_ds = option
-                        break
-
-                if not config_ds:
-                    raise ValueError(f"Data sharing '{datasharing_name}' non trovato")
-
-                if not self.validate_period(periodo, interactive=False):
-                    raise ValueError(f"Periodo non valido: {periodo}")
-                periods = self._expand_periods(periodo)
-
-                socio_data = self.dso_manager.verify_socio(socio)
-                if socio_data is None or socio_data.empty:
-                    raise ValueError(f"Il socio {socio} non è attivo o non esiste")
-
-                campo_value = socio_data[config_ds.campo].iloc[0] if config_ds.campo in socio_data.columns else 0
-                if campo_value != 1:
-                    raise ValueError(
-                        f"Il socio {socio} non è abilitato per il data sharing '{datasharing_name}'"
-                    )
-
-                result = self._process_periods_for_socio(socio, periods, config_ds)
-                self.dso_manager.complete_auto_job(
-                    job,
-                    result.get("success", False),
-                    output_file=result.get("output_file"),
-                    message=result.get("message"),
-                )
-                self.log.info(result.get("message"))
-            except Exception as exc:
-                self.dso_manager.complete_auto_job(job, False, output_file=None, message=str(exc))
-                self.log.error(f"Errore job automatico: {exc}")
-
-            processed_jobs += 1
-
     def main(self):
         import sys
         if len(sys.argv) > 1:
             if any(arg.lower() in ["?", "/?", "help", "--help", "aiuto"] for arg in sys.argv):
                 print("USO:")
-                print("--auto: Legge i job da tabella e li elabora automaticamente.")
                 print("--period <YYYYMM|YYYY> (Obbligatorio, primo parametro):")
                 print("  - YYYYMM genera solo il mese specificato, anche se richiesto esplicitamente prima del giorno 20.")
                 print("  - YYYY genera l'anno completo se è un anno chiuso.")

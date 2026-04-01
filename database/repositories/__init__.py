@@ -1,4 +1,3 @@
 from .base_repository import BaseRepository
-from .auto_execution_repository import AutoExecutionRepository
 from .coca_cola_tracking_repository import CocaColaTrackingRepository
 from .soci_repository import SociRepository
