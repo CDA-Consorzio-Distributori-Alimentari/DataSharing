@@ -39,6 +39,14 @@
             "program": "main.py",
             "args": ["--period", "2026", "--datasharing", "CC002", "--socio", "40"],
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Windows",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "C:\\Program Files\\Python313\\python.exe",
+            "program": "main_windows.py",            
+            "console": "integratedTerminal"
         }
     ]
 }

@@ -1,0 +1,687 @@
+import threading
+import tkinter as tk
+from tkinter import messagebox, ttk
+import math
+from datetime import datetime
+
+from services.data_sharing_runtime import DataSharingRuntime
+
+
+class ToolTip:
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tip_window = None
+
+        widget.bind("<Enter>", self._show)
+        widget.bind("<Leave>", self._hide)
+
+    def _show(self, event=None):
+        if self.tip_window or not self.text:
+            return
+
+        x = self.widget.winfo_rootx() + 16
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 8
+
+        self.tip_window = tip_window = tk.Toplevel(self.widget)
+        tip_window.wm_overrideredirect(True)
+        tip_window.wm_geometry(f"+{x}+{y}")
+
+        label = tk.Label(
+            tip_window,
+            text=self.text,
+            justify="left",
+            background="#fff8dc",
+            relief="solid",
+            borderwidth=1,
+            padx=8,
+            pady=4,
+        )
+        label.pack()
+
+    def _hide(self, event=None):
+        if self.tip_window is not None:
+            self.tip_window.destroy()
+            self.tip_window = None
+
+
+class DataSharingWindowsApp:
+    def __init__(self):
+        self.backend = DataSharingRuntime()
+        self.root = tk.Tk()
+        self.root.title(f"DataSharing {self.backend.config.version}")
+        self.root.geometry("1120x760")
+        self.root.minsize(960, 680)
+
+        self.selected_option = None
+        self.available_soci = []
+        self.socio_check_vars = {}
+        self.is_processing = False
+
+        self.datasharing_var = tk.StringVar()
+        self.period_type_var = tk.StringVar(value="year")
+        self.period_value_var = tk.StringVar()
+        self.socio_filter_var = tk.StringVar()
+        self.status_var = tk.StringVar(value="Seleziona un data sharing per iniziare.")
+        self.release_var = tk.StringVar(value=f"Release {self.backend.config.version}")
+        self.progress_var = tk.DoubleVar(value=0)
+        self.progress_text_var = tk.StringVar(value="0%")
+        self._period_validation_in_progress = False
+        self._last_period_error = ""
+        self._last_run_started_at = None
+
+        self._build_ui()
+        self._load_datasharing_options()
+
+    def _build_ui(self):
+        container = ttk.Frame(self.root, padding=16)
+        container.pack(fill="both", expand=True)
+        container.columnconfigure(0, weight=1)
+        container.rowconfigure(5, weight=1)
+
+        header = ttk.Label(
+            container,
+            text="DataSharing - CDA",
+            font=("Segoe UI", 16, "bold"),
+        )
+        header.grid(row=0, column=0, sticky="w", pady=(0, 12))
+
+        release_label = ttk.Label(
+            container,
+            textvariable=self.release_var,
+            font=("Segoe UI", 10, "italic"),
+        )
+        release_label.grid(row=0, column=0, sticky="e", pady=(0, 12))
+
+        selection_frame = ttk.LabelFrame(container, text="Parametri elaborazione", padding=12)
+        selection_frame.grid(row=1, column=0, sticky="nsew")
+        selection_frame.columnconfigure(1, weight=1)
+
+        ttk.Label(selection_frame, text="Data sharing").grid(row=0, column=0, sticky="w", padx=(0, 12), pady=6)
+        self.datasharing_combo = ttk.Combobox(
+            selection_frame,
+            textvariable=self.datasharing_var,
+            state="readonly",
+        )
+        self.datasharing_combo.grid(row=0, column=1, sticky="ew", pady=6)
+        self.datasharing_combo.bind("<<ComboboxSelected>>", self._on_datasharing_changed)
+        ToolTip(self.datasharing_combo, "Scegli il data sharing. I soci abilitati vengono caricati automaticamente.")
+
+        ttk.Label(selection_frame, text="Tipo periodo").grid(row=1, column=0, sticky="w", padx=(0, 12), pady=6)
+        period_type_frame = ttk.Frame(selection_frame)
+        period_type_frame.grid(row=1, column=1, sticky="w", pady=6)
+
+        ttk.Radiobutton(
+            period_type_frame,
+            text="Anno (YYYY)",
+            variable=self.period_type_var,
+            value="year",
+            command=self._on_period_type_changed,
+        ).pack(side="left", padx=(0, 16))
+        ttk.Radiobutton(
+            period_type_frame,
+            text="Periodo (YYYYMM)",
+            variable=self.period_type_var,
+            value="month",
+            command=self._on_period_type_changed,
+        ).pack(side="left")
+        ToolTip(period_type_frame, "Scegli se elaborare un anno intero oppure un singolo periodo mensile.")
+
+        ttk.Label(selection_frame, text="Valore periodo").grid(row=2, column=0, sticky="w", padx=(0, 12), pady=6)
+        self.period_entry = ttk.Entry(selection_frame, textvariable=self.period_value_var)
+        self.period_entry.grid(row=2, column=1, sticky="ew", pady=6)
+        period_validate_command = (self.root.register(self._validate_period_on_focus_out), "%P")
+        period_invalid_command = (self.root.register(self._handle_invalid_period_focus_out),)
+        self.period_entry.configure(
+            validate="focusout",
+            validatecommand=period_validate_command,
+            invalidcommand=period_invalid_command,
+        )
+        self.period_entry.bind("<KeyRelease>", self._on_period_value_changed)
+        ToolTip(self.period_entry, "Inserisci YYYY per un anno oppure YYYYMM per un mese, in base alla selezione sopra.")
+
+        self.period_hint_label = ttk.Label(selection_frame, text="Inserisci un anno nel formato YYYY")
+        self.period_hint_label.grid(row=3, column=1, sticky="w", pady=(0, 6))
+
+        soci_label_frame = ttk.LabelFrame(selection_frame, text="Soci abilitati")
+        soci_label_frame.grid(row=4, column=0, columnspan=2, sticky="nsew", pady=8)
+        soci_label_frame.columnconfigure(0, weight=1)
+        soci_label_frame.rowconfigure(1, weight=1)
+        selection_frame.rowconfigure(4, weight=1)
+
+        soci_actions_frame = ttk.Frame(soci_label_frame)
+        soci_actions_frame.grid(row=0, column=0, sticky="ew", padx=8, pady=(8, 4))
+
+        select_all_button = ttk.Button(soci_actions_frame, text="Seleziona tutti", command=self._select_all_soci)
+        select_all_button.pack(side="left")
+        clear_all_button = ttk.Button(soci_actions_frame, text="Deseleziona tutti", command=self._clear_soci_selection)
+        clear_all_button.pack(side="left", padx=(8, 0))
+        ttk.Label(soci_actions_frame, text="Filtro soci").pack(side="left", padx=(16, 6))
+        self.socio_filter_entry = ttk.Entry(soci_actions_frame, textvariable=self.socio_filter_var, width=32)
+        self.socio_filter_entry.pack(side="left", fill="x", expand=True)
+        self.socio_filter_entry.bind("<KeyRelease>", self._on_socio_filter_changed)
+        ToolTip(select_all_button, "Seleziona tutti i soci attualmente visibili.")
+        ToolTip(clear_all_button, "Rimuove la selezione da tutti i soci.")
+        ToolTip(self.socio_filter_entry, "Filtra i soci per codice o ragione sociale.")
+
+        self.soci_canvas = tk.Canvas(soci_label_frame, height=150, highlightthickness=0)
+        self.soci_canvas.grid(row=1, column=0, sticky="nsew", padx=(8, 0), pady=(0, 8))
+        ToolTip(self.soci_canvas, "Seleziona uno o più soci abilitati per il data sharing scelto.")
+
+        soci_scrollbar = ttk.Scrollbar(soci_label_frame, orient="vertical", command=self.soci_canvas.yview)
+        soci_scrollbar.grid(row=1, column=1, sticky="ns", padx=(0, 8), pady=(0, 8))
+        self.soci_canvas.configure(yscrollcommand=soci_scrollbar.set)
+
+        self.soci_frame = ttk.Frame(self.soci_canvas)
+        self.soci_window = self.soci_canvas.create_window((0, 0), window=self.soci_frame, anchor="nw")
+        self.soci_frame.bind("<Configure>", self._on_soci_frame_configure)
+        self.soci_canvas.bind("<Configure>", self._on_soci_canvas_configure)
+
+        action_frame = ttk.Frame(container, padding=(0, 12, 0, 12))
+        action_frame.grid(row=2, column=0, sticky="ew")
+
+        self.run_button = ttk.Button(action_frame, text="Avvia elaborazione", command=self._run_export)
+        self.run_button.pack(side="left")
+        ToolTip(self.run_button, "Si abilita solo quando data sharing, periodo e almeno un socio sono validi.")
+
+        status_frame = ttk.LabelFrame(container, text="Stato", padding=12)
+        status_frame.grid(row=3, column=0, sticky="ew")
+        ttk.Label(status_frame, textvariable=self.status_var).pack(anchor="w")
+
+        progress_frame = ttk.Frame(container)
+        progress_frame.grid(row=4, column=0, sticky="ew", pady=(4, 8))
+        progress_frame.columnconfigure(0, weight=1)
+
+        self.progress_bar = ttk.Progressbar(
+            progress_frame,
+            orient="horizontal",
+            mode="determinate",
+            maximum=100,
+            variable=self.progress_var,
+        )
+        self.progress_bar.grid(row=0, column=0, sticky="ew")
+
+        self.progress_label = ttk.Label(progress_frame, textvariable=self.progress_text_var, width=8, anchor="e")
+        self.progress_label.grid(row=0, column=1, padx=(8, 0))
+
+        output_frame = ttk.LabelFrame(container, text="Esito elaborazione", padding=12)
+        output_frame.grid(row=5, column=0, sticky="nsew")
+        output_frame.columnconfigure(0, weight=1)
+        output_frame.rowconfigure(0, weight=1)
+
+        self.output_text = tk.Text(output_frame, wrap="word", height=14, state="disabled")
+        self.output_text.grid(row=0, column=0, sticky="nsew")
+
+        output_scroll = ttk.Scrollbar(output_frame, orient="vertical", command=self.output_text.yview)
+        output_scroll.grid(row=0, column=1, sticky="ns")
+        self.output_text.configure(yscrollcommand=output_scroll.set)
+
+        self._on_period_type_changed()
+        self._render_soci_checkboxes([])
+        self._update_run_button_state()
+
+    def _load_datasharing_options(self):
+        options = self.backend.get_sorted_options()
+        self.option_map = {
+            self._format_option_label(option): option
+            for option in options
+        }
+        labels = list(self.option_map.keys())
+        self.datasharing_combo["values"] = labels
+        self.datasharing_var.set("")
+        self.selected_option = None
+        self.status_var.set("Seleziona un data sharing per iniziare.")
+
+    @staticmethod
+    def _format_option_label(option):
+        return f"{option.code} - {option.name} ({option.file_type})"
+
+    @staticmethod
+    def _format_socio_label(socio_code, socio_name):
+        cleaned_name = str(socio_name or "").strip()
+        if cleaned_name:
+            return f"{socio_code} - {cleaned_name}"
+        return str(socio_code)
+
+    def _on_soci_frame_configure(self, event=None):
+        self.soci_canvas.configure(scrollregion=self.soci_canvas.bbox("all"))
+
+    def _on_soci_canvas_configure(self, event):
+        self.soci_canvas.itemconfigure(self.soci_window, width=event.width)
+
+    def _set_output(self, text):
+        self.output_text.configure(state="normal")
+        self.output_text.delete("1.0", tk.END)
+        self.output_text.insert(tk.END, text)
+        self.output_text.configure(state="disabled")
+
+    def _update_progress(self, current_step, total_steps, label_text=None):
+        if total_steps <= 0:
+            percentage = 0
+        else:
+            percentage = min(100, max(0, round((current_step / total_steps) * 100)))
+
+        self.progress_var.set(percentage)
+        self.progress_text_var.set(f"{percentage}%")
+        if label_text:
+            self.status_var.set(label_text)
+
+    def _append_output(self, text):
+        self.output_text.configure(state="normal")
+        self.output_text.insert(tk.END, text)
+        self.output_text.see(tk.END)
+        self.output_text.configure(state="disabled")
+
+    def _on_period_type_changed(self):
+        if self.period_type_var.get() == "year":
+            self.period_hint_label.configure(text="Inserisci un anno nel formato YYYY")
+        else:
+            self.period_hint_label.configure(text="Inserisci un periodo nel formato YYYYMM")
+        self._update_run_button_state()
+
+    def _on_period_value_changed(self, event=None):
+        self._update_run_button_state()
+
+    def _on_datasharing_changed(self, event=None):
+        selected_label = self.datasharing_var.get()
+        self.selected_option = self.option_map.get(selected_label)
+        self._refresh_soci()
+        self._update_run_button_state()
+
+    def _refresh_soci(self):
+        if not self.selected_option:
+            self.available_soci = []
+            self._render_soci_checkboxes([])
+            self.status_var.set("Seleziona un data sharing.")
+            self._update_run_button_state()
+            return
+
+        try:
+            soci_rows = self._load_enabled_soci(self.selected_option)
+        except Exception as exc:
+            self._render_soci_checkboxes([])
+            self.status_var.set(f"Errore caricamento soci: {exc}")
+            self._set_output(f"Errore caricamento soci per {self.selected_option.code}: {exc}")
+            self._update_run_button_state()
+            return
+
+        self.available_soci = soci_rows
+        self._render_soci_checkboxes(soci_rows)
+
+        if soci_rows:
+            self.status_var.set(f"Trovati {len(soci_rows)} soci abilitati per {self.selected_option.code}.")
+        else:
+            self.status_var.set(f"Nessun socio abilitato per {self.selected_option.code}.")
+        self._update_run_button_state()
+
+    def _load_enabled_soci(self, option):
+        return self.backend.get_enabled_soci(option)
+
+    def _get_filtered_soci(self):
+        filter_value = self.socio_filter_var.get().strip().lower()
+        if not filter_value:
+            return self.available_soci
+
+        filtered_rows = []
+        for row in self.available_soci:
+            socio_code = str(row.get("code", "")).strip().lower()
+            socio_name = str(row.get("name", "")).strip().lower()
+            if filter_value in socio_code or filter_value in socio_name:
+                filtered_rows.append(row)
+
+        return filtered_rows
+
+    def _on_socio_filter_changed(self, event=None):
+        self._render_soci_checkboxes(self._get_filtered_soci())
+        self._update_run_button_state()
+
+    def _render_soci_checkboxes(self, soci_rows):
+        previous_selection = {
+            socio_code: var.get()
+            for socio_code, var in self.socio_check_vars.items()
+        }
+
+        for child in self.soci_frame.winfo_children():
+            child.destroy()
+
+        self.socio_check_vars = {}
+
+        if not soci_rows:
+            ttk.Label(self.soci_frame, text="Nessun socio disponibile.").grid(row=0, column=0, sticky="w", padx=8, pady=8)
+            return
+
+        column_count = 3
+        rows_per_column = max(1, math.ceil(len(soci_rows) / column_count))
+
+        for column_index in range(column_count):
+            self.soci_frame.columnconfigure(column_index, weight=1)
+
+        for index, row in enumerate(soci_rows):
+            socio_code = row["code"]
+            socio_label = self._format_socio_label(socio_code, row["name"])
+            var = tk.BooleanVar(value=previous_selection.get(socio_code, False))
+            var.trace_add("write", self._on_socio_selection_changed)
+            self.socio_check_vars[socio_code] = var
+
+            row_index = index % rows_per_column
+            column_index = index // rows_per_column
+            ttk.Checkbutton(self.soci_frame, text=socio_label, variable=var).grid(
+                row=row_index,
+                column=column_index,
+                sticky="w",
+                padx=8,
+                pady=2,
+            )
+
+    def _on_socio_selection_changed(self, *args):
+        self._update_run_button_state()
+
+    def _get_selected_socio_codes(self):
+        return [socio_code for socio_code, var in self.socio_check_vars.items() if var.get()]
+
+    def _select_all_soci(self):
+        for var in self.socio_check_vars.values():
+            var.set(True)
+        self._update_run_button_state()
+
+    def _clear_soci_selection(self):
+        for var in self.socio_check_vars.values():
+            var.set(False)
+        self._update_run_button_state()
+
+    def _is_period_ready(self):
+        value = self.period_value_var.get().strip()
+        expected_length = 4 if self.period_type_var.get() == "year" else 6
+
+        if not value:
+            return False
+
+        if not value.isdigit() or len(value) != expected_length:
+            return False
+
+        try:
+            self.backend.expand_periods(value)
+            return True
+        except ValueError:
+            return False
+
+    def _update_run_button_state(self):
+        if self.is_processing:
+            self.run_button.configure(state="disabled")
+            return
+
+        is_ready = bool(self.selected_option) and self._is_period_ready() and bool(self._get_selected_socio_codes())
+        self.run_button.configure(state="normal" if is_ready else "disabled")
+
+    def _build_period_value(self):
+        value = self.period_value_var.get().strip()
+        expected_length = 4 if self.period_type_var.get() == "year" else 6
+
+        if not value:
+            raise ValueError("Inserire il periodo.")
+
+        if not value.isdigit() or len(value) != expected_length:
+            format_label = "YYYY" if expected_length == 4 else "YYYYMM"
+            raise ValueError(f"Il periodo deve essere nel formato {format_label}.")
+
+        self.backend.expand_periods(value)
+        return value
+
+    def _validate_period_on_focus_out(self, proposed_value):
+        if self._period_validation_in_progress:
+            return True
+
+        value = str(proposed_value or "").strip()
+        self._last_period_error = ""
+
+        if not value:
+            self._update_run_button_state()
+            return True
+
+        try:
+            expected_length = 4 if self.period_type_var.get() == "year" else 6
+
+            if not value.isdigit() or len(value) != expected_length:
+                format_label = "YYYY" if expected_length == 4 else "YYYYMM"
+                raise ValueError(f"Il periodo deve essere nel formato {format_label}.")
+
+            self.backend.expand_periods(value)
+            self.status_var.set("Periodo valido.")
+            self._update_run_button_state()
+            return True
+        except ValueError as exc:
+            self._last_period_error = str(exc)
+            self.status_var.set(self._last_period_error)
+            self._update_run_button_state()
+            return False
+
+    def _handle_invalid_period_focus_out(self):
+        if not self._last_period_error:
+            return
+        self.root.after_idle(self._show_period_validation_alert)
+
+    def _show_period_validation_alert(self):
+        if self._period_validation_in_progress or not self._last_period_error:
+            return
+
+        try:
+            self._period_validation_in_progress = True
+            messagebox.showwarning("Validazione periodo", self._last_period_error, parent=self.root)
+            self._focus_period_entry()
+        finally:
+            self._period_validation_in_progress = False
+
+    def _focus_period_entry(self):
+        self.period_entry.focus_set()
+        self.period_entry.selection_range(0, tk.END)
+        self.period_entry.icursor(tk.END)
+
+    def _validate_selection(self):
+        if not self.selected_option:
+            raise ValueError("Selezionare un data sharing.")
+
+        socio_codes = self._get_selected_socio_codes()
+        if not socio_codes:
+            raise ValueError("Selezionare almeno un socio abilitato.")
+
+        period_value = self._build_period_value()
+        return socio_codes, period_value
+
+    def _set_running_state(self, is_running):
+        self.is_processing = is_running
+        state = "disabled" if is_running else "normal"
+        combo_state = "disabled" if is_running else "readonly"
+
+        self.datasharing_combo.configure(state=combo_state)
+        self.period_entry.configure(state=state)
+        for child in self.soci_frame.winfo_children():
+            try:
+                child.configure(state=state)
+            except tk.TclError:
+                pass
+
+        if not is_running and self.progress_var.get() < 100:
+            self.progress_var.set(0)
+            self.progress_text_var.set("0%")
+
+        self._update_run_button_state()
+
+    def _run_export(self):
+        try:
+            socio_codes, period_value = self._validate_selection()
+        except ValueError as exc:
+            messagebox.showerror("Validazione", str(exc), parent=self.root)
+            return
+
+        option = self.selected_option
+        self._last_run_started_at = datetime.now()
+        self._set_running_state(True)
+        self.progress_var.set(0)
+        self.progress_text_var.set("0%")
+        self.status_var.set(
+            f"Elaborazione in corso per {option.code}, soci selezionati: {len(socio_codes)}, periodo {period_value}."
+        )
+        self._set_output(
+            "ESECUZIONE STEP BY STEP\n"
+            + "=" * 60
+            + f"\nData sharing: {option.code} - {option.name}"
+            + f"\nPeriodo richiesto: {period_value}"
+            + f"\nSoci selezionati: {len(socio_codes)}\n\n"
+        )
+
+        worker = threading.Thread(
+            target=self._run_export_worker,
+            args=(socio_codes, period_value, option),
+            daemon=True,
+        )
+        worker.start()
+
+    def _run_export_worker(self, socio_codes, period_value, option):
+        try:
+            periods = self.backend.expand_periods(period_value)
+            total_steps = max(1, len(socio_codes) * max(1, len(periods)))
+            completed_steps = 0
+            self.root.after(
+                0,
+                lambda: self._append_output(
+                    f"Periodi da elaborare: {', '.join(periods)}\n" if periods else "Nessun periodo da elaborare.\n"
+                ),
+            )
+            results = []
+            for socio_index, socio_code in enumerate(socio_codes, start=1):
+                self.root.after(
+                    0,
+                    lambda s=socio_code, idx=socio_index, total=len(socio_codes): self._append_output(
+                        f"\n[{idx}/{total}] Avvio socio {s}\n"
+                    ),
+                )
+
+                socio_period_results = []
+                for period_index, single_period in enumerate(periods, start=1):
+                    self.root.after(
+                        0,
+                        lambda s=socio_code, p=single_period, idx=period_index, total=len(periods): self._append_output(
+                            f"  - Periodo {idx}/{total}: {p} in elaborazione...\n"
+                        ),
+                    )
+                    result = self.backend.dso_manager.process_data(socio_code, single_period, option)
+                    socio_period_results.append(result)
+                    completed_steps += 1
+                    self.root.after(
+                        0,
+                        lambda s=socio_code, p=single_period, r=result, done=completed_steps, total=total_steps: self._on_period_step_completed(
+                            s,
+                            p,
+                            r,
+                            done,
+                            total,
+                        ),
+                    )
+
+                aggregated_result = self.backend.build_aggregated_result(socio_code, periods, option, socio_period_results)
+                results.append((socio_code, aggregated_result))
+                self.root.after(
+                    0,
+                    lambda s=socio_code, r=aggregated_result: self._append_output(
+                        f"  Completato socio {s}: {'OK' if r.get('success') else 'KO'}"
+                        + (f" | Output: {r.get('output_file')}" if r.get('output_file') else "")
+                        + "\n"
+                    ),
+                )
+            self.root.after(0, lambda: self._handle_result(results, period_value, option))
+        except Exception as exc:
+            self.root.after(0, lambda: self._handle_error(exc))
+
+    def _on_period_step_completed(self, socio_code, single_period, result, completed_steps, total_steps):
+        self._append_output(
+            f"    Esito periodo {single_period}: {'OK' if result.get('success') else 'KO'}"
+            + (f" | File: {result.get('output_file')}" if result.get('output_file') else "")
+            + "\n"
+        )
+        self._update_progress(
+            completed_steps,
+            total_steps,
+            f"Avanzamento {completed_steps}/{total_steps} - socio {socio_code}, periodo {single_period}",
+        )
+
+    def _handle_result(self, results, period_value, option):
+        self._set_running_state(False)
+
+        success = all(bool(result.get("success")) for _, result in results)
+        processed_count = len(results)
+        success_count = sum(1 for _, result in results if result.get("success"))
+        failure_count = processed_count - success_count
+        run_finished_at = datetime.now()
+        duration_text = ""
+        if self._last_run_started_at is not None:
+            duration = run_finished_at - self._last_run_started_at
+            duration_text = str(duration).split(".")[0]
+
+        status_text = "Elaborazione completata con successo." if success else "Elaborazione completata con errori."
+        self.status_var.set(status_text)
+        self.progress_var.set(100)
+        self.progress_text_var.set("100%")
+
+        requested_period_type = "Anno" if self.period_type_var.get() == "year" else "Periodo mensile"
+        lines = [
+            "RIEPILOGO ELABORAZIONE",
+            "=" * 60,
+            f"Data sharing: {option.code} - {option.name}",
+            f"Tipo file: {option.file_type}",
+            f"Tipo periodo richiesto: {requested_period_type}",
+            f"Periodo richiesto: {period_value}",
+            f"Esito: {'OK' if success else 'KO'}",
+            f"Soci elaborati: {processed_count}",
+            f"Soci con esito OK: {success_count}",
+            f"Soci con esito KO: {failure_count}",
+            f"Avvio elaborazione: {self._last_run_started_at.strftime('%d/%m/%Y %H:%M:%S') if self._last_run_started_at else ''}",
+            f"Fine elaborazione: {run_finished_at.strftime('%d/%m/%Y %H:%M:%S')}",
+        ]
+
+        if duration_text:
+            lines.append(f"Durata: {duration_text}")
+
+        lines.append("")
+        lines.append("DETTAGLIO PER SOCIO")
+        lines.append("-" * 60)
+
+        for socio_code, result in results:
+            lines.append("")
+            lines.append(f"Socio: {socio_code}")
+            lines.append(f"Esito socio: {'OK' if result.get('success') else 'KO'}")
+            lines.append(f"Messaggio: {result.get('message', '')}")
+
+            output_file = result.get("output_file")
+            if output_file:
+                lines.append(f"File: {output_file}")
+                file_count = len([item for item in str(output_file).split(';') if str(item).strip()])
+                lines.append(f"Numero file: {file_count}")
+            else:
+                lines.append("File: nessun file prodotto")
+
+        self._set_output("\n".join(lines))
+        self._last_run_started_at = None
+
+        if success:
+            messagebox.showinfo("DataSharing", "Elaborazione completata.", parent=self.root)
+        else:
+            messagebox.showwarning("DataSharing", "Elaborazione terminata con errori. Controllare il dettaglio.", parent=self.root)
+
+    def _handle_error(self, exc):
+        self._set_running_state(False)
+        self.progress_text_var.set("0%")
+        self.status_var.set("Errore durante l'elaborazione.")
+        self._set_output(f"Errore: {exc}")
+        messagebox.showerror("DataSharing", str(exc), parent=self.root)
+
+    def run(self):
+        self.root.mainloop()
+
+
+def main():
+    app = DataSharingWindowsApp()
+    app.run()
+
+
+if __name__ == "__main__":
+    main()

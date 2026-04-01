@@ -5,11 +5,13 @@ param(
 $ErrorActionPreference = "Stop"
 
 $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$SpecFile = Join-Path $ProjectRoot "datasharing.spec"
+$CliSpecFile = Join-Path $ProjectRoot "datasharing.spec"
+$WindowsSpecFile = Join-Path $ProjectRoot "datasharing_windows.spec"
 $DistDir = Join-Path $ProjectRoot "dist"
 $BuildDir = Join-Path $ProjectRoot "build"
 $DeployDir = Join-Path $ProjectRoot "deploy"
-$ExePath = Join-Path $DistDir "datasharing.exe"
+$CliExePath = Join-Path $DistDir "datasharing.exe"
+$WindowsExePath = Join-Path $DistDir "datasharing_windows.exe"
 $VenvPython = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
 
 if (Test-Path $VenvPython) {
@@ -46,9 +48,14 @@ if ($Clean) {
 
 Push-Location $ProjectRoot
 try {
-    & $PythonCommand @PythonArgs -m PyInstaller --noconfirm $SpecFile
+    & $PythonCommand @PythonArgs -m PyInstaller --noconfirm $CliSpecFile
     if ($LASTEXITCODE -ne 0) {
-        throw "Build PyInstaller terminata con errore. Vedere l'output sopra."
+        throw "Build PyInstaller CLI terminata con errore. Vedere l'output sopra."
+    }
+
+    & $PythonCommand @PythonArgs -m PyInstaller --noconfirm $WindowsSpecFile
+    if ($LASTEXITCODE -ne 0) {
+        throw "Build PyInstaller Windows terminata con errore. Vedere l'output sopra."
     }
 }
 finally {
@@ -67,11 +74,16 @@ if (Test-Path $DeployDir) {
     New-Item -ItemType Directory -Path $DeployDir | Out-Null
 }
 
-if (-not (Test-Path $ExePath)) {
-    throw "Eseguibile non trovato in $ExePath"
+if (-not (Test-Path $CliExePath)) {
+    throw "Eseguibile CLI non trovato in $CliExePath"
 }
 
-Copy-Item $ExePath (Join-Path $DeployDir "datasharing.exe") -Force
+if (-not (Test-Path $WindowsExePath)) {
+    throw "Eseguibile Windows non trovato in $WindowsExePath"
+}
+
+Copy-Item $CliExePath (Join-Path $DeployDir "datasharing.exe") -Force
+Copy-Item $WindowsExePath (Join-Path $DeployDir "datasharing_windows.exe") -Force
 Copy-Item (Join-Path $ProjectRoot "config.template.json") (Join-Path $DeployDir "config.template.json") -Force
 Copy-Item (Join-Path $ProjectRoot "DEPLOY_SERVER.md") (Join-Path $DeployDir "README_DEPLOY.md") -Force
 
