@@ -137,7 +137,7 @@ class DataSharingOwnerManager:
         os.makedirs(output_dir, exist_ok=True)
         return output_dir
 
-    def _build_naming_context(self, socio, periodo, config_ds: Option, database_results=None):
+    def _build_naming_context(self, socio, periodo, config_ds: Option, database_results=None, socio_data=None):
         context = {
             "SOCIO": str(socio).strip(),
             "PERIODO": str(periodo),
@@ -146,6 +146,11 @@ class DataSharingOwnerManager:
             "DATASHARING_CODE": config_ds.code,
             "FILE_TYPE": config_ds.file_type,
         }
+
+        socio_row = self._get_socio_row(socio_data)
+        relation_wholesaler_id = str(socio_row.get("WholesalerID", "") or "").strip()
+        if relation_wholesaler_id:
+            context["WholesalerID"] = relation_wholesaler_id
 
         for key, value in getattr(config_ds, "naming_variables", {}).items():
             context[str(key)] = "" if value is None else str(value).strip()
@@ -169,7 +174,7 @@ class DataSharingOwnerManager:
 
         return re.sub(r"\{([^{}]+)\}", replace_match, template)
 
-    def _resolve_naming_convention(self, socio, config_ds: Option, periodo, database_results=None):
+    def _resolve_naming_convention(self, socio, config_ds: Option, periodo, database_results=None, socio_data=None):
         current_datetime = datetime.now()
         naming_convention = getattr(config_ds, "naming_convention", None)
         if not naming_convention:
@@ -178,7 +183,7 @@ class DataSharingOwnerManager:
         for placeholder, fmt in self.config.placeholders.items():
             naming_convention = naming_convention.replace(placeholder, current_datetime.strftime(fmt))
 
-        naming_context = self._build_naming_context(socio, periodo, config_ds, database_results)
+        naming_context = self._build_naming_context(socio, periodo, config_ds, database_results, socio_data)
         return self._replace_named_placeholders(naming_convention, naming_context)
 
     @staticmethod
@@ -187,11 +192,11 @@ class DataSharingOwnerManager:
        
         return f".{normalized_file_type}"
 
-    def _build_output_file_path(self, socio, config_ds: Option, periodo, database_results=None):
+    def _build_output_file_path(self, socio, config_ds: Option, periodo, database_results=None, socio_data=None):
         extension = self._resolve_output_extension(config_ds.file_type)
         output_dir = self._build_output_directory(socio, config_ds)
 
-        naming_convention = self._resolve_naming_convention(socio, config_ds, periodo, database_results)
+        naming_convention = self._resolve_naming_convention(socio, config_ds, periodo, database_results, socio_data)
 
         if not naming_convention.lower().endswith(extension):
             naming_convention = f"{naming_convention}{extension}"
@@ -220,10 +225,10 @@ class DataSharingOwnerManager:
         query = query.replace("@periodoelaborazione", f"'{periodo}'", 1)
         return query, None
 
-    def _create_output_artifact(self, socio, periodo, config_ds: Option, database_results):
+    def _create_output_artifact(self, socio, periodo, config_ds: Option, database_results, socio_data=None):
         # Costruisce il contenuto una sola volta e restituisce lo stream in
         # memoria; il salvataggio su disco avviene in un punto unico separato.
-        output_file = self._build_output_file_path(socio, config_ds, periodo, database_results)
+        output_file = self._build_output_file_path(socio, config_ds, periodo, database_results, socio_data)
         self.log.info(f"Generazione artefatto {config_ds.file_type} in {output_file}.")
 
         if config_ds.file_type == FileType.XML:
@@ -385,7 +390,7 @@ class DataSharingOwnerManager:
         # Il risultato ritorna sempre in forma strutturata, così il metodo
         # può essere riusato sia da CLI sia da una futura API.
         self.log.info(f"Avvio elaborazione per socio {socio}, periodo {periodo}, data sharing {config_ds.code}.")
-        socio_data = self.verify_socio(socio)
+        socio_data = self.verify_socio(socio, config_ds.code)
         tracking_session = None
         if self.coca_cola_tracking_manager.supports(config_ds):
             tracking_session = self.coca_cola_tracking_manager.start_session(socio, periodo, config_ds, socio_data)
@@ -408,7 +413,7 @@ class DataSharingOwnerManager:
         try:
             if tracking_session is not None:
                 self.coca_cola_tracking_manager.append(tracking_session, "Scrittura file XML")
-            output_file, delivery_stream = self._create_output_artifact(socio, periodo, config_ds, database_results)
+            output_file, delivery_stream = self._create_output_artifact(socio, periodo, config_ds, database_results, socio_data)
             if tracking_session is not None:
                 self.coca_cola_tracking_manager.append(tracking_session, "SCRITTURA FILE XML OK")
         except FileNotFoundError as exc:
@@ -474,5 +479,5 @@ class DataSharingOwnerManager:
         success_result["delivery"] = delivery_details
         return self._finalize_result(socio, periodo, config_ds, socio_data, success_result)
         
-    def verify_socio(self, socio):
-        return self.db_manager.verify_socio(socio)
+    def verify_socio(self, socio, datasharing_code=None):
+        return self.db_manager.verify_socio(socio, datasharing_code)

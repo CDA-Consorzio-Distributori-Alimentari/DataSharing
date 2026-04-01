@@ -5,18 +5,22 @@
         {
             "code": "CC001",
             "name": "Coca Cola V1",
-            "Campo": "TC_Soci_CocaCola_Attivo",
             "file_type": "xml",
             "delivery_method": "ftp",
             "xml_mapping": {
-                "WholesalerID": "TC_Soci_CocaCola_Codice",
+                "WholesalerID": "WholesalerID",
                 "CodiceClienteCDA": {
-                    "fields": ["Clienti_Codice", "Clienti_Codice_Pdc"],
+                    "fields": [
+                        "Clienti_Codice",
+                        "Clienti_Codice_Pdc"
+                    ],
                     "separator": "_"
                 }
             },
             "xml_grouping": {
-                "Sales/Transaction": ["CodiceClienteCDA"]
+                "Sales/Transaction": [
+                    "CodiceClienteCDA"
+                ]
             },
             "ftp_config": {
                 "host": "connecta.uvesolutions.com",
@@ -30,18 +34,22 @@
         {
             "code": "CC002",
             "name": "Coca Cola V2",
-            "Campo": "TC_Soci_CocaCola_In_Chiaro",
             "file_type": "xml",
             "delivery_method": "ftp",
             "xml_mapping": {
-                "WholesalerID": "TC_Soci_CocaCola_Codice",
+                "WholesalerID": "WholesalerID",
                 "CodiceClienteSocio": {
-                    "fields": ["Clienti_Codice", "Clienti_Codice_Pdc"],
+                    "fields": [
+                        "Clienti_Codice",
+                        "Clienti_Codice_Pdc"
+                    ],
                     "separator": "_"
                 }
             },
             "xml_grouping": {
-                "Sales/Transaction": ["CodiceClienteSocio"]
+                "Sales/Transaction": [
+                    "CodiceClienteSocio"
+                ]
             },
             "ftp_config": {
                 "host": "connecta.uvesolutions.com",
@@ -55,7 +63,6 @@
         {
             "code": "CA001",
             "name": "Campari",
-            "Campo": "TC_Soci_Campari_Attivo",
             "file_type": "xml",
             "delivery_method": "ftp",
             "ftp_config": {
@@ -74,25 +81,22 @@
         {
             "code": "DI001",
             "name": "DIAGEO",
-            "Campo": "TC_Soci_DIAGEO_Attivo",
             "file_type": "csv",
-            "delivery_method": "nasshare",         
+            "delivery_method": "nasshare",
             "naming_convention": "CWHS_CodiceSAPDIAGEO_2_YYYYMMDDhhmmss"
         },
         {
             "code": "RB001",
             "name": "RedBull",
-            "Campo": "TC_Soci_RedBull_Attivo",
             "file_type": "csv",
-            "delivery_method": "nasshare",          
+            "delivery_method": "nasshare",
             "naming_convention": "CWHS_CodiceSAPRedBull_2_YYYYMMDDhhmmss"
         },
         {
             "code": "MA001",
             "name": "Martini",
-            "Campo": "TC_Soci_Martini_Attivo",
             "file_type": "csv",
-            "delivery_method": "nasshare",            
+            "delivery_method": "nasshare",
             "naming_convention": "CWHS_CodiceSAPMartini_2_YYYYMMDDhhmmss"
         }
     ],
@@ -136,7 +140,10 @@
     "coca_cola_tracking": {
         "enabled": true,
         "table": "dbo.tc_Coca_Cola",
-        "tracked_codes": ["CC001", "CC002"]
+        "tracked_codes": [
+            "CC001",
+            "CC002"
+        ]
     },
     "artifacts_root_path": "\\\\cdabackup\\DataSharing",
     "log": {

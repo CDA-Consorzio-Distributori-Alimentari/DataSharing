@@ -77,11 +77,10 @@ class DataSharing:
 
     def _process_periods_for_all_soci(self, periods, config_ds: Option):
         processed_count = 0
-        for socio_item in self.dso_manager.get_soci_list():
+        for socio_row in self.dso_manager.db_manager.get_enabled_soci_for_datasharing(config_ds.code):
+            socio_item = socio_row["code"]
             socio_data = self.dso_manager.verify_socio(socio_item)
             if socio_data is None or socio_data.empty:
-                continue
-            if socio_data[config_ds.campo].iloc[0] != 1:
                 continue
 
             for single_period in periods:
@@ -133,12 +132,13 @@ class DataSharing:
                 return periodo
 
     def choose_data_sharing(self, socio_data):
+        socio_row = self.dso_manager._get_socio_row(socio_data)
+        socio_code = str(socio_row.get("TC_Soci_Codice", "") or "").strip()
+        enabled_codes = set(self.dso_manager.db_manager.get_enabled_datasharing_codes_for_socio(socio_code))
         active_data_sharing = []
         for option in self.ds_option.options:
-            campo_value = socio_data[option.campo].iloc[0] if option.campo in socio_data.columns else 0
-
-            if campo_value == 1:
-              active_data_sharing.append(option)                
+            if option.code in enabled_codes:
+                active_data_sharing.append(option)
 
         if not active_data_sharing:
             self.log.warning("Nessun data sharing attivo per il socio selezionato.")
@@ -233,9 +233,8 @@ class DataSharing:
             if socio_data is None or socio_data.empty:
                 self.log.error("Il socio non è attivo o non esiste. Uscita.")
                 return
-            campo_value = socio_data[config_ds.campo].iloc[0] if config_ds.campo in socio_data.columns else 0
 
-            if campo_value == 1:
+            if self.dso_manager.db_manager.is_socio_enabled_for_datasharing(socio, config_ds.code):
                 result = self._process_periods_for_socio(socio, periods, config_ds)
                 self.log.info(result["message"])
             else:

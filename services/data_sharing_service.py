@@ -14,9 +14,16 @@ class DataSharingService:
         return None
 
     def get_active_options(self, socio_data):
+        socio_code = ""
+        if hasattr(socio_data, "empty") and not socio_data.empty:
+            socio_code = str(socio_data.iloc[0].get("TC_Soci_Codice", "") or "").strip()
+        elif hasattr(socio_data, "get"):
+            socio_code = str(socio_data.get("TC_Soci_Codice", "") or "").strip()
+
+        enabled_codes = set(self.dso_manager.db_manager.get_enabled_datasharing_codes_for_socio(socio_code))
         active_data_sharing = []
         for option in self.ds_option.options:
-            if socio_data.get(f"TC_Soci_{option.name.replace(' ', '_')}_Attivo", 0):
+            if option.code in enabled_codes:
                 active_data_sharing.append(option)
         return active_data_sharing
 
@@ -37,8 +44,7 @@ class DataSharingService:
                 "output_file": None,
             }
 
-        campo_value = socio_data[option.campo].iloc[0] if option.campo in socio_data.columns else 0
-        if campo_value != 1:
+        if not self.dso_manager.db_manager.is_socio_enabled_for_datasharing(socio, option.code):
             return {
                 "success": False,
                 "message": f"Il socio {socio} non è abilitato per il data sharing '{datasharing_code}'.",

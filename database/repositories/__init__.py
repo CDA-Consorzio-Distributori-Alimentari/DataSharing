@@ -1,3 +1,4 @@
 from .base_repository import BaseRepository
 from .coca_cola_tracking_repository import CocaColaTrackingRepository
+from .socio_datasharing_repository import SocioDataSharingRepository
 from .soci_repository import SociRepository

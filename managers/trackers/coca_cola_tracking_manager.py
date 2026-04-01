@@ -58,7 +58,7 @@ class CocaColaTrackingManager:
             {
                 "socio_code": int(socio_row.get("TC_Soci_Codice", session.socio)),
                 "socio_polo": socio_row.get("TC_Soci_Polo"),
-                "wholesaler_id": socio_row.get("TC_Soci_CocaCola_Codice"),
+                "wholesaler_id": socio_row.get("WholesalerID") or socio_row.get("TC_Soci_CocaCola_Codice"),
                 "period": int(session.periodo),
                 "flow_number": self._resolve_flow_number(output_file) if output_file else 1,
                 "log": "  ".join(session.log_entries),
@@ -71,7 +71,7 @@ class CocaColaTrackingManager:
         if not socio_row:
             return f"Socio     {socio}"
 
-        wholesaler_id = str(socio_row.get("TC_Soci_CocaCola_Codice", "") or "").strip()
+        wholesaler_id = str(socio_row.get("WholesalerID", "") or socio_row.get("TC_Soci_CocaCola_Codice", "") or "").strip()
         socio_code = str(socio_row.get("TC_Soci_Codice", socio) or "").strip()
         socio_polo = str(socio_row.get("TC_Soci_Polo", "") or "").strip()
         social_name = str(socio_row.get("TC_Soci_Ragione_Sociale", "") or "").strip()

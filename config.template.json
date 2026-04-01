@@ -10,11 +10,10 @@
         {
             "code": "CC001",
             "name": "Coca Cola V1",
-            "Campo": "TC_Soci_CocaCola_Attivo",
             "file_type": "xml",
             "delivery_method": "ftp",
             "xml_mapping": {
-                "WholesalerID": "TC_Soci_CocaCola_Codice",
+                "WholesalerID": "WholesalerID",
                 "CodiceClienteCDA": {
                     "fields": ["Clienti_Codice", "Clienti_Codice_Pdc"],
                     "separator": "_"
@@ -35,11 +34,10 @@
         {
             "code": "CC002",
             "name": "Coca Cola V2",
-            "Campo": "TC_Soci_CocaCola_In_Chiaro",
             "file_type": "xml",
             "delivery_method": "ftp",
             "xml_mapping": {
-                "WholesalerID": "TC_Soci_CocaCola_Codice",
+                "WholesalerID": "WholesalerID",
                 "CodiceClienteSocio": {
                     "fields": ["Clienti_Codice", "Clienti_Codice_Pdc"],
                     "separator": "_"
@@ -60,7 +58,6 @@
         {
             "code": "CA001",
             "name": "Campari",
-            "Campo": "TC_Soci_Campari_Attivo",
             "file_type": "xml",
             "delivery_method": "ftp",
             "ftp_config": {
@@ -79,7 +76,6 @@
         {
             "code": "DI001",
             "name": "DIAGEO",
-            "Campo": "TC_Soci_DIAGEO_Attivo",
             "file_type": "csv",
             "delivery_method": "nasshare",
             "nasshare_config": {
@@ -90,7 +86,6 @@
         {
             "code": "RB001",
             "name": "RedBull",
-            "Campo": "TC_Soci_RedBull_Attivo",
             "file_type": "csv",
             "delivery_method": "nasshare",
             "nasshare_config": {
@@ -101,7 +96,6 @@
         {
             "code": "MA001",
             "name": "Martini",
-            "Campo": "TC_Soci_Martini_Attivo",
             "file_type": "csv",
             "delivery_method": "nasshare",
             "nasshare_config": {

@@ -129,14 +129,12 @@ Esempio di configurazione per un nuovo data sharing XML:
 {
   "code": "CL001",
   "name": "New Customer",
-  "Campo": "TC_Soci_NewCustomer_Attivo",
   "file_type": "xml",
   "delivery_method": "ftp",
-  "fields": "TC_Soci_NewCustomer_Attivo",
   "query_file": "New_Customer_query.sql",
   "xslt_template": "New_Customer_transformation.xslt",
   "xml_mapping": {
-    "WholesalerID": "TC_Soci_NewCustomer_Codice",
+    "WholesalerID": "WholesalerID",
     "CustomerCode": {
       "fields": ["Clienti_Codice", "Clienti_Codice_Pdc"],
       "separator": "_"
@@ -236,7 +234,7 @@ Esempio:
 
 ```sql
 SELECT
-    TC_Soci_CocaCola_Codice AS WholesalerID,
+  WholesalerID,
     TW_Vendite_Data_DDT AS DataDDT,
     TW_Vendite_Numero_DDT AS NumeroDDT,
     TW_Vendite_Volume AS Volume,
@@ -252,7 +250,7 @@ Esempi:
 
 ```json
 {
-  "WholesalerID": "TC_Soci_CocaCola_Codice",
+  "WholesalerID": "WholesalerID",
   "CodiceCliente": {
     "fields": ["Clienti_Codice", "Clienti_Codice_Pdc"],
     "separator": "_"
@@ -276,6 +274,8 @@ Esempio:
 ## 9. Convenzione Operativa Consigliata
 
 Per aggiungere un nuovo data sharing XML:
+
+Le abilitazioni socio/data sharing vengono lette dalla tabella `TR_Soci_DataSharing`, non piu da colonne dedicate dentro `TC_Soci`.
 
 1. creare o copiare la query SQL dentro `querysql/{COD_datasharing}`
 2. creare o copiare il template XSLT dentro `templatexml/{COD_datasharing}`

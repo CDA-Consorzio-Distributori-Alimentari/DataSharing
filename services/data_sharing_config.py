@@ -81,7 +81,6 @@ class Option:
         self.name = option_data.get("name")
         self.file_type = FileType(option_data.get("file_type"))
         self.code = option_data.get("code")
-        self.campo = option_data.get("Campo")
         self.delivery_method = DeliveryMethod(option_data.get("delivery_method"))
         self.naming_convention = option_data.get("naming_convention")
         self.naming_variables = option_data.get("naming_variables", {})

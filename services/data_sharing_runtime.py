@@ -87,27 +87,4 @@ class DataSharingRuntime:
         return sorted(self.ds_option.options, key=lambda item: (item.code or "", item.name or ""))
 
     def get_enabled_soci(self, option: Option):
-        query = f"""
-            SELECT
-                [TC_Soci_Codice],
-                [TC_Soci_Ragione_Sociale]
-            FROM [cda].[dbo].[TC_Soci]
-            WHERE [TC_Soci_Socio_Attivo] = 1
-              AND [{option.campo}] = 1
-            ORDER BY [TC_Soci_Codice]
-        """
-        data = self.dso_manager.db_manager.fetch_all(query)
-        soci_rows = []
-        for _, row in data.iterrows():
-            socio_code = str(row.get("TC_Soci_Codice", "")).strip()
-            if not socio_code:
-                continue
-
-            soci_rows.append(
-                {
-                    "code": socio_code,
-                    "name": str(row.get("TC_Soci_Ragione_Sociale", "")).strip(),
-                }
-            )
-
-        return soci_rows
+        return self.dso_manager.db_manager.get_enabled_soci_for_datasharing(option.code)

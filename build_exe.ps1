@@ -12,7 +12,68 @@ $BuildDir = Join-Path $ProjectRoot "build"
 $DeployDir = Join-Path $ProjectRoot "deploy"
 $CliExePath = Join-Path $DistDir "datasharing.exe"
 $WindowsExePath = Join-Path $DistDir "datasharing_windows.exe"
+$GuidePath = Join-Path $ProjectRoot "GUIDA_UTENTE_DATASHARING.md"
+$ConfigPath = Join-Path $ProjectRoot "config.json"
 $VenvPython = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
+
+$DeployFiles = @(
+    "datasharing.exe",
+    "datasharing_windows.exe",
+    "config.json",
+    "GUIDA_UTENTE_DATASHARING.md"
+)
+
+function Invoke-NativeCommand {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments
+    )
+
+    $stdoutPath = [System.IO.Path]::GetTempFileName()
+    $stderrPath = [System.IO.Path]::GetTempFileName()
+
+    try {
+        $process = Start-Process -FilePath $FilePath -ArgumentList $Arguments -NoNewWindow -Wait -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+
+        if (Test-Path $stdoutPath) {
+            Get-Content $stdoutPath | ForEach-Object { Write-Host $_ }
+        }
+
+        if (Test-Path $stderrPath) {
+            Get-Content $stderrPath | ForEach-Object { Write-Host $_ }
+        }
+
+        return $process.ExitCode
+    }
+    finally {
+        if (Test-Path $stdoutPath) {
+            Remove-Item $stdoutPath -Force -ErrorAction SilentlyContinue
+        }
+        if (Test-Path $stderrPath) {
+            Remove-Item $stderrPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Clear-DirectoryContents {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    if (-not (Test-Path $Path)) {
+        return
+    }
+
+    Get-ChildItem -Path $Path -Force | ForEach-Object {
+        if ($DeployFiles -contains $_.Name) {
+            Remove-Item $_.FullName -Recurse -Force -ErrorAction Stop
+        }
+    }
+}
 
 if (Test-Path $VenvPython) {
     $PythonCommand = $VenvPython
@@ -27,8 +88,8 @@ if (Test-Path $VenvPython) {
     throw "Python non trovato. Installare Python oppure creare .venv nel progetto."
 }
 
-& $PythonCommand @PythonArgs -m PyInstaller --version *> $null
-if ($LASTEXITCODE -ne 0) {
+$pyInstallerVersionExitCode = Invoke-NativeCommand -FilePath $PythonCommand -Arguments (@($PythonArgs) + @("-m", "PyInstaller", "--version"))
+if ($pyInstallerVersionExitCode -ne 0) {
     throw "PyInstaller non installato nell'ambiente selezionato. Eseguire: $PythonCommand $($PythonArgs -join ' ') -m pip install pyinstaller"
 }
 
@@ -42,19 +103,24 @@ if ($Clean) {
     }
 
     if (Test-Path $DeployDir) {
-        Remove-Item $DeployDir -Recurse -Force
+        try {
+            Remove-Item $DeployDir -Recurse -Force -ErrorAction Stop
+        }
+        catch {
+            throw "Impossibile pulire la cartella deploy. Chiudere eventuali exe avviati da '$DeployDir' e riprovare. Dettaglio: $($_.Exception.Message)"
+        }
     }
 }
 
 Push-Location $ProjectRoot
 try {
-    & $PythonCommand @PythonArgs -m PyInstaller --noconfirm $CliSpecFile
-    if ($LASTEXITCODE -ne 0) {
+    $cliBuildExitCode = Invoke-NativeCommand -FilePath $PythonCommand -Arguments (@($PythonArgs) + @("-m", "PyInstaller", "--noconfirm", $CliSpecFile))
+    if ($cliBuildExitCode -ne 0) {
         throw "Build PyInstaller CLI terminata con errore. Vedere l'output sopra."
     }
 
-    & $PythonCommand @PythonArgs -m PyInstaller --noconfirm $WindowsSpecFile
-    if ($LASTEXITCODE -ne 0) {
+    $windowsBuildExitCode = Invoke-NativeCommand -FilePath $PythonCommand -Arguments (@($PythonArgs) + @("-m", "PyInstaller", "--noconfirm", $WindowsSpecFile))
+    if ($windowsBuildExitCode -ne 0) {
         throw "Build PyInstaller Windows terminata con errore. Vedere l'output sopra."
     }
 }
@@ -69,7 +135,12 @@ if (Test-Path (Join-Path $ProjectRoot "config.json")) {
 }
 
 if (Test-Path $DeployDir) {
-    Remove-Item (Join-Path $DeployDir "*") -Recurse -Force
+    try {
+        Clear-DirectoryContents -Path $DeployDir
+    }
+    catch {
+        throw "Impossibile aggiornare la cartella deploy. Chiudere eventuali exe aperti da '$DeployDir' e riprovare. Dettaglio: $($_.Exception.Message)"
+    }
 } else {
     New-Item -ItemType Directory -Path $DeployDir | Out-Null
 }
@@ -84,13 +155,13 @@ if (-not (Test-Path $WindowsExePath)) {
 
 Copy-Item $CliExePath (Join-Path $DeployDir "datasharing.exe") -Force
 Copy-Item $WindowsExePath (Join-Path $DeployDir "datasharing_windows.exe") -Force
-Copy-Item (Join-Path $ProjectRoot "config.template.json") (Join-Path $DeployDir "config.template.json") -Force
-Copy-Item (Join-Path $ProjectRoot "DEPLOY_SERVER.md") (Join-Path $DeployDir "README_DEPLOY.md") -Force
 
-if (Test-Path (Join-Path $ProjectRoot "config.json")) {
-    Copy-Item (Join-Path $ProjectRoot "config.json") (Join-Path $DeployDir "config.json") -Force
+if (Test-Path $ConfigPath) {
+    Copy-Item $ConfigPath (Join-Path $DeployDir "config.json") -Force
 }
 
-if (Test-Path (Join-Path $ProjectRoot "config.local.json")) {
-    Copy-Item (Join-Path $ProjectRoot "config.local.json") (Join-Path $DeployDir "config.local.json") -Force
+if (Test-Path $GuidePath) {
+    Copy-Item $GuidePath (Join-Path $DeployDir "GUIDA_UTENTE_DATASHARING.md") -Force
 }
+
+Write-Host "Pacchetto deploy pronto in: $DeployDir"

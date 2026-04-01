@@ -4,13 +4,19 @@ Questa guida e pensata per un utente non tecnico che deve lanciare il programma,
 
 ## Dove si trova l'eseguibile
 
-L'applicazione puo essere distribuita anche come eseguibile Windows:
+L'applicazione viene consegnata gia pronta come eseguibile Windows:
 
 ```text
 datasharing.exe
+datasharing_windows.exe
 ```
 
-Quando viene consegnata in formato exe, il file `config.json` deve stare nella stessa cartella dell'eseguibile.
+Il file `config.json` deve stare nella stessa cartella degli eseguibili consegnati.
+
+Nel pacchetto consegnato sono presenti due eseguibili:
+
+- `datasharing.exe`: versione a riga di comando
+- `datasharing_windows.exe`: versione con interfaccia grafica
 
 ## A cosa serve
 
@@ -22,6 +28,31 @@ Il programma DataSharing:
 - manda una mail finale di recap con il riepilogo dell'operazione
 
 ## Come lanciare il programma
+
+Il programma puo essere usato in due modi:
+
+- con riga di comando tramite `datasharing.exe`
+- con interfaccia grafica tramite `datasharing_windows.exe`
+
+## Come usare la versione con interfaccia grafica
+
+Aprendo `datasharing_windows.exe` compare una finestra guidata.
+
+L'uso e questo:
+
+1. scegliere il data sharing dalla lista
+2. scegliere se il periodo e annuale (`YYYY`) oppure mensile (`YYYYMM`)
+3. inserire il periodo
+4. selezionare uno o piu soci abilitati
+5. premere `Avvia elaborazione`
+
+La finestra mostra anche:
+
+- l'avanzamento percentuale
+- il dettaglio step by step dell'elaborazione
+- l'esito finale per ogni socio
+
+Se il periodo non e corretto, il programma avvisa subito con un messaggio.
 
 Per eseguire il programma servono tre informazioni:
 
@@ -56,19 +87,16 @@ datasharing.exe --list-datasharing
 
 Il comando mostra codice, nome e tipo file di ogni data sharing.
 
-## Come creare l'exe
+## Cosa viene consegnato all'utente
 
-Per generare l'eseguibile dal progetto Python usare questo comando dalla cartella del progetto:
+L'utente BAS non deve creare l'exe e non deve preparare pacchetti tecnici.
 
-```powershell
-.\build_exe.ps1
-```
-
-Al termine viene creata la cartella `dist` con:
+Riceve direttamente una cartella gia pronta all'uso con:
 
 - `datasharing.exe`
-- `config.template.json`
-- `config.json`, se presente in fase di build
+- `datasharing_windows.exe`
+- `config.json`
+- `GUIDA_UTENTE_DATASHARING.md`
 
 ## Dove vengono salvati i file
 
@@ -130,15 +158,9 @@ In alcuni casi, oltre al file principale, nella cartella puo comparire anche un 
 
 ## Cosa succede dopo il lancio
 
-Quando il comando parte, il programma verifica nella tabella `TC_Soci` se il socio e abilitato al data sharing richiesto. Se il socio non risulta abilitato, l'elaborazione non prosegue. Se invece e abilitato, il programma genera il file, lo salva nella cartella condivisa, lo invia e manda una mail finale di recap.
+Quando il comando parte, il programma verifica nella tabella `TR_Soci_DataSharing` se il socio e abilitato al data sharing richiesto. Se il socio non risulta abilitato, l'elaborazione non prosegue. Se invece e abilitato, il programma genera il file, lo salva nella cartella condivisa, lo invia e manda una mail finale di recap.
 
-Alcuni esempi di campi usati per questa verifica sono:
-
-- `TC_Soci_CocaCola_Attivo`
-- `TC_Soci_CocaCola_In_Chiaro`
-- `TC_Soci_DIAGEO_Attivo`
-
-In pratica, se il campo collegato al data sharing vale `1`, il socio e abilitato. Se vale `0`, non e abilitato.
+In pratica, per ogni coppia socio e data sharing esiste una riga dedicata. Se `Flag_Attivo` vale `1`, il socio e abilitato. Se vale `0`, non e abilitato.
 
 ## La mail di recap
 

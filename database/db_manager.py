@@ -5,7 +5,7 @@ import pandas as pd
 import pyodbc
 
 from services.config import Config
-from .repositories import CocaColaTrackingRepository, SociRepository
+from .repositories import CocaColaTrackingRepository, SocioDataSharingRepository, SociRepository
 
 
 class DBManager:
@@ -17,6 +17,7 @@ class DBManager:
         self._sqlalchemy_modules = None
         self._sqlalchemy_session_factory = None
         self._soci_repository = None
+        self._socio_datasharing_repository = None
         self._coca_cola_tracking_repository = None
 
     def _log_warning(self, message):
@@ -130,6 +131,22 @@ class DBManager:
             self._soci_repository = SociRepository(self)
         return self._soci_repository
 
+    def _get_socio_datasharing_repository(self):
+        if self._socio_datasharing_repository is None:
+            self._socio_datasharing_repository = SocioDataSharingRepository(self)
+        return self._socio_datasharing_repository
+
+    @staticmethod
+    def _merge_socio_with_relation(socio_data, relation_row):
+        if socio_data is None or socio_data.empty or not relation_row:
+            return socio_data
+
+        merged = socio_data.copy()
+        first_index = merged.index[0]
+        for column_name, column_value in relation_row.items():
+            merged.loc[first_index, column_name] = column_value
+        return merged
+
     def _get_coca_cola_tracking_repository(self, tracking_config=None):
         if self._coca_cola_tracking_repository is None:
             self._coca_cola_tracking_repository = CocaColaTrackingRepository(self, tracking_config)
@@ -198,9 +215,74 @@ class DBManager:
                 ],
             )
 
-    def verify_socio(self, socio):
+    def verify_socio(self, socio, datasharing_code=None):
         try:
-            return self._get_soci_repository().get_active_socio_dataframe(socio)
+            socio_data = self._get_soci_repository().get_active_socio_dataframe(socio)
+            if datasharing_code:
+                relation_row = self.get_socio_datasharing_relation(socio, datasharing_code)
+                socio_data = self._merge_socio_with_relation(socio_data, relation_row)
+            return socio_data
         except Exception as exc:
             self._log_error(f"Error verifying socio {socio}: {exc}")
             return pd.DataFrame()
+
+    def get_socio_datasharing_relations(self, socio=None, datasharing_code=None, only_enabled=False):
+        try:
+            return self._get_socio_datasharing_repository().get_relations_dataframe(
+                socio_code=socio,
+                datasharing_code=datasharing_code,
+                only_enabled=only_enabled,
+            )
+        except Exception as exc:
+            self._log_error(
+                f"Error reading socio-datasharing relations for socio={socio}, datasharing={datasharing_code}: {exc}"
+            )
+            return pd.DataFrame()
+
+    def get_socio_datasharing_relation(self, socio, datasharing_code):
+        relation_data = self.get_socio_datasharing_relations(socio=socio, datasharing_code=datasharing_code)
+        if relation_data.empty:
+            return {}
+
+        relation_row = relation_data.iloc[0]
+        if hasattr(relation_row, "to_dict"):
+            return relation_row.to_dict()
+        return dict(relation_row)
+
+    def is_socio_enabled_for_datasharing(self, socio, datasharing_code):
+        relation_data = self.get_socio_datasharing_relations(socio=socio, datasharing_code=datasharing_code)
+        if relation_data.empty:
+            return False
+        return bool(int(relation_data.iloc[0].get("Flag_Attivo", 0) or 0))
+
+    def get_enabled_datasharing_codes_for_socio(self, socio):
+        relation_data = self.get_socio_datasharing_relations(socio=socio, only_enabled=True)
+        if relation_data.empty:
+            return []
+
+        codes = []
+        for _, row in relation_data.iterrows():
+            code = str(row.get("DataSharing_Code", "")).strip()
+            if code and code not in codes:
+                codes.append(code)
+        return codes
+
+    def get_enabled_soci_for_datasharing(self, datasharing_code):
+        relation_data = self.get_socio_datasharing_relations(datasharing_code=datasharing_code, only_enabled=True)
+        if relation_data.empty:
+            return []
+
+        soci_rows = []
+        for _, row in relation_data.iterrows():
+            socio_code = str(row.get("TC_Soci_Codice", "")).strip()
+            if not socio_code:
+                continue
+
+            soci_rows.append(
+                {
+                    "code": socio_code,
+                    "name": str(row.get("TC_Soci_Ragione_Sociale", "")).strip(),
+                }
+            )
+
+        return soci_rows
