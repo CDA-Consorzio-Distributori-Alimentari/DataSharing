@@ -1,5 +1,10 @@
 {
-    "DEBUG": false,
+    "_usage": [
+        "Copia questo file in config.local.json o config.json per l'uso locale.",
+        "Sostituisci i placeholder __SET_ME__ con i valori reali.",
+        "Non committare password reali nei file di configurazione versionati."
+    ],
+    "DEBUG": true,
     "version": "1.0.0",
     "data_sharing_options": [
         {
@@ -21,7 +26,7 @@
             "ftp_config": {
                 "host": "connecta.uvesolutions.com",
                 "user": "Agent-7614",
-                "password": "13damare08!",
+                "password": "__SET_ME__",
                 "port": 21,
                 "create_ok_file": true
             },
@@ -46,7 +51,7 @@
             "ftp_config": {
                 "host": "connecta.uvesolutions.com",
                 "user": "Agent-7614",
-                "password": "13damare08!",
+                "password": "__SET_ME__",
                 "port": 21,
                 "create_ok_file": true
             },
@@ -61,7 +66,7 @@
             "ftp_config": {
                 "host": "connecta.uvesolutions.com",
                 "user": "Agent-7614",
-                "password": "13damare08!",
+                "password": "__SET_ME__",
                 "port": 21,
                 "create_ok_file": true
             },
@@ -120,13 +125,13 @@
     "ftp_config": {
         "host": "ftp.example.com",
         "user": "ftp_user",
-        "password": "ftp_password"
+        "password": "__SET_ME__"
     },
     "mail_config": {
         "smtp_server": "smtp.example.com",
         "port": 587,
         "user": "email_user",
-        "password": "email_password"
+        "password": "__SET_ME__"
     },
     "connection_string": {
         "data_source": "DWH",

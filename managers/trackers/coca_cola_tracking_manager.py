@@ -16,10 +16,11 @@ class CocaColaTrackingSession:
 class CocaColaTrackingManager:
     DEFAULT_TRACKED_CODES = {"CC001", "CC002"}
 
-    def __init__(self, db_manager, tracking_config=None, log_manager=None):
+    def __init__(self, db_manager, tracking_config=None, log_manager=None, debug_enabled=False):
         self.db_manager = db_manager
         self.tracking_config = tracking_config or {}
         self.log = log_manager
+        self.debug_enabled = debug_enabled
 
     def supports(self, config_ds):
         if not self.tracking_config.get("enabled", True):
@@ -47,6 +48,11 @@ class CocaColaTrackingManager:
         session.log_entries.append(f"<{message}   {datetime.now().strftime('%H:%M:%S')}>")
 
     def persist(self, session, output_file=None):
+        if self.debug_enabled:
+            if self.log is not None:
+                self.log.info("Modalita debug attiva: tracking Coca Cola non persistito su database.")
+            return
+
         socio_row = self._get_socio_row(session.socio_data)
         self.db_manager.add_coca_cola_tracking_entry(
             {
@@ -78,7 +84,12 @@ class CocaColaTrackingManager:
         if hasattr(socio_data, "empty") and socio_data.empty:
             return {}
         if hasattr(socio_data, "iloc"):
-            return socio_data.iloc[0]
+            socio_row = socio_data.iloc[0]
+            if hasattr(socio_row, "to_dict"):
+                return socio_row.to_dict()
+            return socio_row
+        if hasattr(socio_data, "to_dict"):
+            return socio_data.to_dict()
         return socio_data
 
     @staticmethod

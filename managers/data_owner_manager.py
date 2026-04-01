@@ -85,12 +85,14 @@ class DataSharingOwnerManager:
         naming_context = self._build_naming_context(socio, periodo, config_ds, database_results)
         return self._replace_named_placeholders(naming_convention, naming_context)
 
+    @staticmethod
+    def _resolve_output_extension(file_type):
+        normalized_file_type = str(file_type).strip().lower().lstrip(".")
+       
+        return f".{normalized_file_type}"
+
     def _build_output_file_path(self, socio, config_ds: Option, periodo, database_results=None):
-        extension_map = {
-            FileType.CSV: ".csv",
-            FileType.EXCEL: ".xlsx",
-        }
-        extension = extension_map.get(config_ds.file_type, f".{config_ds.file_type}")
+        extension = self._resolve_output_extension(config_ds.file_type)
         output_dir = self._build_output_directory(socio, config_ds)
 
         naming_convention = self._resolve_naming_convention(socio, config_ds, periodo, database_results)
@@ -164,10 +166,19 @@ class DataSharingOwnerManager:
 
     def _publish_output(self, config_ds: Option, output_file, delivery_stream):
         # La pubblicazione usa il delivery_method configurato sull'opzione.
+        if self.config.debug:
+            self.log.info(
+                f"Modalita debug attiva: pubblicazione saltata per {config_ds.code}. File mantenuto solo in locale: {output_file}."
+            )
+            return False
+
         if config_ds.delivery_method == DeliveryMethod.FTP:
             file_name = os.path.basename(output_file)
             self.log.info(f"Pubblicazione FTP del file {file_name} per data sharing {config_ds.code}.")
             self.get_ftp_manager(config_ds).upload_file(file_name, delivery_stream)
+            return True
+
+        return False
 
     def _resolve_query_file_path(self, config_ds: Option, query_file: str):
         if os.path.isabs(query_file):
@@ -202,6 +213,7 @@ class DataSharingOwnerManager:
                 self.db_manager,
                 getattr(self.config, "coca_cola_tracking", {}),
                 self.log,
+                self.config.debug,
             )
         return self._coca_cola_tracking_manager
 
@@ -318,9 +330,11 @@ class DataSharingOwnerManager:
         try:
             if tracking_session is not None and config_ds.delivery_method == DeliveryMethod.FTP:
                 self.coca_cola_tracking_manager.append(tracking_session, "INVIO FILE XML...")
-            self._publish_output(config_ds, output_file, delivery_stream)
-            if tracking_session is not None and config_ds.delivery_method == DeliveryMethod.FTP:
+            published = self._publish_output(config_ds, output_file, delivery_stream)
+            if tracking_session is not None and config_ds.delivery_method == DeliveryMethod.FTP and published:
                 self.coca_cola_tracking_manager.append(tracking_session, "INVIO FILE XML OK")
+            if tracking_session is not None and config_ds.delivery_method == DeliveryMethod.FTP and not published:
+                self.coca_cola_tracking_manager.append(tracking_session, "INVIO FILE XML SKIPPED DEBUG")
         except Exception as exc:
             message = f"File generato ma pubblicazione fallita: {exc}"
             self.log.error(message)

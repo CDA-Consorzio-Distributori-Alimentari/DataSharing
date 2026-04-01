@@ -1,4 +1,6 @@
 OutPut/
+DataSharingShare/LOG/
+DataSharingShare/OutPut/
 *.log
 __pycache__/
 *.py[cod]
@@ -14,9 +16,12 @@ env/
 ENV/
 .idea/
 .vscode/*.code-workspace
+config.local.json
 ~$*.xlsx
 Thumbs.db
 .DS_Store
 build/
 dist/
 *.egg-info/
+# Added by ggshield
+.cache_ggshield

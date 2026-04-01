@@ -2,14 +2,15 @@ import json
 import logging
 from pathlib import Path
 
+from services.app_metadata import APP_NAME, APP_VERSION, COMPANY_NAME, FILE_DESCRIPTION, PRODUCT_NAME
+from services.config_loader import load_merged_config
+
 
 class Config:
     def __init__(self):
-        config_file = "config.json"
-        with open(config_file, "r") as file:
-            config_data = json.load(file)
-        self.placeholders = config_data.get("placeholders", {})
         self.configs_file = "config.json"
+        self.local_configs_file = "config.local.json"
+        self.placeholders = {}
         self.load_config()
 
     @property
@@ -107,6 +108,34 @@ class Config:
     def coca_cola_tracking(self):
         return self._coca_cola_tracking
 
+    @property
+    def debug(self):
+        return self._debug
+
+    @property
+    def version(self):
+        return self._version
+
+    @property
+    def app_name(self):
+        return self._app_name
+
+    @property
+    def app_version(self):
+        return self._app_version
+
+    @property
+    def company_name(self):
+        return self._company_name
+
+    @property
+    def file_description(self):
+        return self._file_description
+
+    @property
+    def product_name(self):
+        return self._product_name
+
     def _get_project_root(self):
         return Path(__file__).resolve().parent.parent
 
@@ -172,8 +201,9 @@ class Config:
         return getattr(logging, level_name, logging.INFO)
 
     def load_config(self):
-        with open(self.configs_file, "r") as file:
-            config_data = json.load(file)
+        config_data = load_merged_config(self.configs_file, self.local_configs_file)
+        self._config_data = config_data
+        self.placeholders = config_data.get("placeholders", {})
 
         project_root = self._get_project_root()
         configured_working_folder = config_data.get("working_folder")
@@ -198,6 +228,13 @@ class Config:
             self._resolve_path(config_data.get("output_path"), "OutPut", base_path=self._artifacts_root_path)
         )
         self._db_path = config_data.get("db_path", "data_sharing.db")
+        self._debug = bool(config_data.get("debug", config_data.get("DEBUG", False)))
+        self._app_name = APP_NAME
+        self._app_version = APP_VERSION
+        self._company_name = COMPANY_NAME
+        self._file_description = FILE_DESCRIPTION
+        self._product_name = PRODUCT_NAME
+        self._version = self._app_version
 
         log_config = config_data.get("log", {})
         legacy_log_file = config_data.get("log_file")
@@ -253,8 +290,7 @@ class Config:
         }
 
     def get_data_sharing_options(self):
-        with open(self.configs_file, "r") as file:
-            return json.load(file)["data_sharing_options"]
+        return self._config_data.get("data_sharing_options", [])
 
     def get_connection_string(self):
         return (
@@ -270,7 +306,4 @@ class Config:
         )
 
     def load_placeholders(self):
-        config_file = "config.json"
-        with open(config_file, "r") as file:
-            config_data = json.load(file)
-        self.placeholders = config_data.get("placeholders", {})
+        self.placeholders = self._config_data.get("placeholders", {})

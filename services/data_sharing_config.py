@@ -1,5 +1,6 @@
-import json
 from enum import StrEnum
+
+from services.config_loader import load_merged_config
 
 
 def _load_supported_values(key, defaults):
@@ -23,8 +24,7 @@ def _enum_member_name(value):
 
 
 def _load_config_data(config_file="config.json"):
-    with open(config_file, "r") as file:
-        return json.load(file)
+    return load_merged_config(config_file, "config.local.json")
 
 
 FileType = StrEnum(

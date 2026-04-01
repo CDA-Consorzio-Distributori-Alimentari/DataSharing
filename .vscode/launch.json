@@ -21,6 +21,24 @@
             "program": "main.py",
             "args": ["--period", "2026", "--datasharing", "CC002", "--socio", "7"],
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Debug DataSharing CC002 2025 40 Socio",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "C:\\Program Files\\Python313\\python.exe",
+            "program": "main.py",
+            "args": ["--period", "2025", "--datasharing", "CC002", "--socio", "40"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Debug DataSharing CC002 2026 40 Socio",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "C:\\Program Files\\Python313\\python.exe",
+            "program": "main.py",
+            "args": ["--period", "2026", "--datasharing", "CC002", "--socio", "40"],
+            "console": "integratedTerminal"
         }
     ]
 }

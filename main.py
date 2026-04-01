@@ -186,6 +186,7 @@ class DataSharing:
 
     def command_line_mode(self):
         parser = argparse.ArgumentParser(description="Data Sharing Script")
+        parser.add_argument("--version", action="version", version=f"DataSharing {self.config.version}")
         parser.add_argument("--period", help="Periodo obbligatorio (formato: YYYYMM oppure YYYY)")
         parser.add_argument("--datasharing", help="Codice del data sharing")
         parser.add_argument("--socio", help="Codice socio (opzionale)")
@@ -239,6 +240,7 @@ class DataSharing:
         if len(sys.argv) > 1:
             if any(arg.lower() in ["?", "/?", "help", "--help", "aiuto"] for arg in sys.argv):
                 print("USO:")
+                print(f"Versione: {self.config.version}")
                 print("--period <YYYYMM|YYYY> (Obbligatorio, primo parametro):")
                 print("  - YYYYMM genera solo il mese specificato, anche se richiesto esplicitamente prima del giorno 20.")
                 print("  - YYYY genera l'anno completo se è un anno chiuso.")
