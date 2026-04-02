@@ -1,44 +1,122 @@
 # Guida Operativa Utente DataSharing
 
-Questa guida e pensata per un utente non tecnico che deve lanciare il programma, controllare i file prodotti e leggere la mail finale di recap.
+Questa guida e pensata per un utente non tecnico. Spiega in modo semplice come usare il programma, dove copiarlo, come avviarlo e cosa controllare alla fine.
 
-## Dove si trova l'eseguibile
+## Cos'e il programma
 
-L'applicazione viene consegnata gia pronta come eseguibile Windows:
+DataSharing e un programma Windows gia pronto all'uso.
 
-```text
-datasharing.exe
-datasharing_windows.exe
-```
+E' un programma stand alone, cioe:
 
-Il file `config.json` deve stare nella stessa cartella degli eseguibili consegnati.
+- non richiede installazione tecnica complessa
+- non richiede Visual Studio o Python
+- puo essere copiato in una cartella del proprio PC
+- puo essere eseguito direttamente da quella cartella
 
-Nel pacchetto consegnato sono presenti due eseguibili:
+Il programma serve a:
 
-- `datasharing.exe`: versione a riga di comando
-- `datasharing_windows.exe`: versione con interfaccia grafica
+- generare il file richiesto per uno specifico data sharing
+- salvare il file nella cartella condivisa aziendale
+- inviare il file al destinatario configurato
+- opzionalmente inviare una mail finale di recap, se il flag dedicato e attivo
 
-## A cosa serve
+## Cosa viene consegnato all'utente
 
-Il programma DataSharing:
+L'utente riceve una cartella gia pronta con questi file:
 
-- genera il file richiesto per uno specifico data sharing
-- salva il file nella cartella condivisa aziendale
-- invia il file al destinatario configurato
-- puo inviare una mail finale di recap con il riepilogo dell'operazione, se il flag dedicato e attivo
+- `datasharing.exe`
+- `datasharing_windows.exe`
+- `config.json`
+- `GUIDA_UTENTE_DATASHARING.md`
 
-## Come lanciare il programma
+Il file `config.json` deve rimanere nella stessa cartella degli eseguibili.
+
+## Dove puo essere copiato
 
 Il programma puo essere usato in due modi:
 
-- con riga di comando tramite `datasharing.exe`
-- con interfaccia grafica tramite `datasharing_windows.exe`
+1. direttamente dalla cartella consegnata
+2. copiandolo sul proprio PC, per esempio sul Desktop o in Documenti
 
-## Come usare la versione con interfaccia grafica
+Esempi di cartelle adatte:
+
+- `C:\Users\<nome utente>\Desktop\DataSharing`
+- `C:\Users\<nome utente>\Documents\DataSharing`
+
+Importante:
+
+- copiare sempre tutta la cartella, non solo l'exe
+- non separare `datasharing_windows.exe` da `config.json`
+- non separare `datasharing.exe` da `config.json`
+- non rinominare i file di configurazione
+
+## Requisito importante: utente di dominio
+
+Per poter usare correttamente il programma, l'utente che lo avvia deve essere un utente di dominio autorizzato.
+
+In pratica il programma funziona se:
+
+1. il PC e collegato al dominio aziendale e l'utente ha fatto accesso con il proprio utente di dominio
+2. oppure il programma viene avviato con `Esegui come altro utente` usando un utente di dominio autorizzato
+
+Se il PC non è in dominio, oppure il programma viene lanciato con un utente non autorizzato, l'elaborazione non parte.
+
+Se non sai se il tuo utente e' autorizzato, chiedi agli Admin.
+
+## Come capire quale file usare
+
+Nella cartella consegnata sono presenti due eseguibili:
+
+- `datasharing_windows.exe`: versione con finestra grafica, uso consigliato
+- `datasharing.exe`: versione a riga di comando
+
+Se non hai un'esigenza specifica, usa sempre `datasharing_windows.exe`.
+
+## Avvio normale del programma
+
+Se sei gia entrato in Windows con il tuo utente aziendale di dominio:
+
+1. apri la cartella dove hai il programma
+2. fai doppio clic su `datasharing_windows.exe`
+3. attendi l'apertura della finestra
+
+Se il programma si apre normalmente, puoi usarlo.
+
+## Come usare il programma con Run As
+
+Se il PC non è aperto con l'utente di dominio corretto, oppure devi usare un altro utente aziendale autorizzato, puoi avviare il programma come altro utente.
+
+Su Windows il comando si chiama di solito `Esegui come altro utente`.
+
+Passi da seguire:
+
+1. vai nella cartella dove si trova `datasharing_windows.exe`
+2. tieni premuto il tasto `Shift` sulla tastiera
+3. mentre tieni premuto `Shift`, fai clic con il tasto destro su `datasharing_windows.exe`
+4. scegli `Esegui come altro utente`
+5. inserisci l'utente di dominio nel formato aziendale richiesto, per esempio `CDA\nome.cognome` oppure `nome.cognome@cdaweb.it`
+6. inserisci la password
+7. premi `OK`
+
+Se tutto e corretto, il programma si aprira usando quell'utente.
+
+## Se non vedi la voce Esegui come altro utente
+
+Su alcuni PC la voce non compare subito.
+
+In questo caso prova cosi:
+
+1. tieni premuto `Shift`
+2. fai clic destro sul file
+3. controlla se compare `Esegui come altro utente`
+
+Se ancora non compare, chiedi supporto al reparto IT o a chi gestisce il PC.
+
+## Come usare la versione con finestra grafica
 
 Aprendo `datasharing_windows.exe` compare una finestra guidata.
 
-L'uso e questo:
+L'uso normale e questo:
 
 1. scegliere il data sharing dalla lista
 2. scegliere se il periodo e annuale (`YYYY`) oppure mensile (`YYYYMM`)
@@ -49,82 +127,55 @@ L'uso e questo:
 La finestra mostra anche:
 
 - l'avanzamento percentuale
-- il dettaglio step by step dell'elaborazione
+- il dettaglio passo per passo dell'elaborazione
 - l'esito finale per ogni socio
 
-Se il periodo non e corretto, il programma avvisa subito con un messaggio.
+Se il periodo non e corretto, il programma mostra un messaggio.
 
-Per eseguire il programma servono tre informazioni:
-
-- `--socio`: codice socio
-- `--period`: periodo da elaborare
-- `--datasharing`: codice del data sharing
-
-Comando tipo:
-
-```powershell
-datasharing.exe --period 2026 --datasharing CC002 --socio 7
-```
-
-Con questo comando il programma elabora il socio `7`, per il data sharing `CC002`, sul periodo `2026`.
+## Significato del periodo
 
 Il periodo puo essere scritto in due modi:
 
-- `YYYYMM` per un singolo mese, ad esempio `202603`
-- `YYYY` per un intero anno, ad esempio `2026`
+- `YYYYMM` per un singolo mese, per esempio `202603`
+- `YYYY` per un intero anno, per esempio `2026`
 
-Esempio su un solo mese:
+Esempi:
 
-```powershell
-datasharing.exe --period 202603 --datasharing CC001 --socio 7
-```
+- `202603` significa marzo 2026
+- `2026` significa tutto l'anno 2026
 
-Per vedere l'elenco dei data sharing disponibili:
+## Quando usare il flag MAIL RECAP
 
-```powershell
-datasharing.exe --list-datasharing
-```
+Nella finestra principale puo essere presente il flag `MAIL RECAP`.
 
-Il comando mostra codice, nome e tipo file di ogni data sharing.
+Questo flag serve per attivare o disattivare la mail interna di riepilogo.
 
-## Cosa viene consegnato all'utente
+Regola pratica:
 
-L'utente BAS non deve creare l'exe e non deve preparare pacchetti tecnici.
+- se il flag e spento, nessuna mail di recap viene inviata
+- se il flag e acceso, viene inviata la mail di recap
 
-Riceve direttamente una cartella gia pronta all'uso con:
-
-- `datasharing.exe`
-- `datasharing_windows.exe`
-- `config.json`
-- `GUIDA_UTENTE_DATASHARING.md`
+Per le elaborazioni annuali viene inviata una sola mail complessiva per socio, non una mail per ogni mese.
 
 ## Dove vengono salvati i file
 
-La cartella condivisa degli artefatti e:
+La cartella condivisa aziendale usata dal programma e:
 
 ```text
 \\cdabackup\DataSharing
 ```
 
-Questa cartella corrisponde alla root `DataSharingShare` usata dal programma.
-
-All'interno si trovano queste sottocartelle principali:
+Le cartelle principali sono:
 
 - `\\cdabackup\DataSharing\LOG`
 - `\\cdabackup\DataSharing\OutPut`
 - `\\cdabackup\DataSharing\querysql`
 - `\\cdabackup\DataSharing\templatexml`
 
-Significato delle cartelle:
+Per l'utente finale sono importanti soprattutto:
 
-- `LOG`: contiene il file di log dell'applicazione
-- `OutPut`: contiene i file generati per soci e data sharing
-- `querysql`: contiene le istruzioni che dicono al programma quali dati leggere dal database
-- `templatexml`: contiene il modello usato per costruire il file XML finale
-
-Il mapping, in pratica, dice quali dati finiscono nei vari campi del file finale.
-
-Esempio semplice: un valore letto dal database viene riportato nel campo corrispondente del file XML.
+- `LOG`: contiene il file di log
+- `OutPut`: contiene i file prodotti
 
 ## Dove trovare il file generato
 
@@ -134,51 +185,53 @@ I file prodotti vengono salvati in:
 \\cdabackup\DataSharing\OutPut\<codice socio>\<codice data sharing>
 ```
 
-Esempio reale:
+Esempio:
 
 ```text
 \\cdabackup\DataSharing\OutPut\7\CC002
 ```
 
-Quindi, dopo il lancio, per il socio `7` e il data sharing `CC002`, il file sara dentro quella cartella.
+Quindi, se elabori il socio `7` per il data sharing `CC002`, il file finale sara in quella cartella.
+
+## Cosa succede durante l'elaborazione
+
+Quando il programma parte:
+
+1. controlla automaticamente se l'utente che lo sta eseguendo e' autorizzato
+2. controlla se il socio è abilitato al data sharing richiesto
+3. genera il file
+4. salva il file nella cartella condivisa
+5. prova a pubblicarlo o inviarlo sul canale previsto
+6. se il recap e attivo, invia anche la mail finale di riepilogo
+
+Se il socio non è abilitato, l'elaborazione non prosegue.
 
 ## Come leggere il nome del file
 
 Il nome del file dipende dal data sharing configurato.
 
-Per esempio, nei flussi Coca Cola il nome contiene di solito:
+In alcuni casi il processo di invio produce anche un file con estensione `.ok`.
 
-- codice wholesaler
-- mese del periodo
-- anno del periodo
-- numero del flusso
+Se non lo vedi nella tua cartella, non significa necessariamente che manchi, perchè prodotto nella destinazione utente
 
-In alcuni casi, oltre al file principale, nella cartella puo comparire anche un secondo file con estensione `.ok`.
-
-
-## Cosa succede dopo il lancio
-
-Quando il comando parte, il programma verifica nella tabella `TR_Soci_DataSharing` se il socio e abilitato al data sharing richiesto. Se il socio non risulta abilitato, l'elaborazione non prosegue. Se invece e abilitato, il programma genera il file, lo salva nella cartella condivisa, lo invia e, se abilitata, manda una mail finale di recap.
-
-In pratica, per ogni coppia socio e data sharing esiste una riga dedicata. Se `Flag_Attivo` vale `1`, il socio e abilitato. Se vale `0`, non e abilitato.
 
 ## La mail di recap
 
 La mail di riepilogo interno e opzionale ed e disattivata di default.
 
-Quando il flag `MAIL RECAP` e attivo nella finestra principale, il programma invia il riepilogo alla fine dell'elaborazione.
-
-Se viene richiesto un anno intero (`YYYY`), il programma invia una sola mail complessiva per socio invece di una mail per ogni mese.
-
-La mail di recap arriva alla casella:
+Quando il flag `MAIL RECAP` e attivo, la mail arriva alla casella:
 
 - `dwh@cdaweb.it`
 
-## Cosa contiene la mail di recap
+Importante:
+
+- l'esito `OK` arriva solo se il file e' stato consegnato con esito positivo
+- se c'e un errore di generazione o di invio, viene inviata una mail con oggetto `ERRORE` anche se il flag `MAIL RECAP` non e' attivo
+- in modalita `DEBUG` la mail di recap non viene inviata
 
 La mail riporta:
 
-- esito finale: `OK` oppure `KO`
+- esito finale `OK` oppure `KO`
 - codice e nome del data sharing
 - codice e nome del socio
 - periodo elaborato
@@ -188,53 +241,72 @@ La mail riporta:
 - percorso locale del file salvato
 - messaggio finale del processo
 
-L'oggetto della mail contiene:
-
-- nome del data sharing
-- codice socio
-- nome socio
-
 ## Come capire se e andato tutto bene
 
-Di norma l'elaborazione e corretta quando:
+Di norma e tutto corretto quando:
 
-1. il comando termina senza errori
+1. il programma termina senza errori
 2. il file compare nella cartella `\\cdabackup\DataSharing\OutPut\...`
-3. se il flag `MAIL RECAP` e attivo, arriva la mail di recap
-4. se presente, nella mail il risultato e `OK`
+3. se la mail di recap arriva con esito `OK`, significa che il file e' stato consegnato con esito positivo
+4. se arriva una mail con oggetto `ERRORE`, significa che l'elaborazione o l'invio non sono andati a buon fine
+
+## Come capire se il file e stato inviato
+
+Per capire se il file e' stato davvero inviato, non basta vedere il file nella cartella `OutPut`.
+
+Il file nella cartella `OutPut` significa che il file e' stato creato.
+
+Per considerarlo anche inviato correttamente, controlla almeno uno di questi punti:
+
+1. se la mail di recap e' attiva, la mail arriva con esito `OK`
+3. se arriva una mail con oggetto `ERRORE`, nel corpo trovi i dettagli del problema.
+2. controlla che non ci siano errori nel log applicativo \\cdabackup\DataSharing\Log
 
 ## Cosa controllare se qualcosa non va
 
-Se l'elaborazione non produce il risultato atteso, controllare in questo ordine:
+Controllare in questo ordine:
 
-1. che il codice socio sia giusto
-2. che il periodo sia corretto
-3. che il codice data sharing sia corretto
-4. che il file sia presente nella cartella condivisa
-5. se il flag `MAIL RECAP` e attivo, che sia arrivata la mail di recap
-6. se presente, che la mail riporti `OK`
+1. di aver aperto il programma con un utente autorizzato
+2. che il codice socio sia corretto
+3. che il periodo sia corretto
+4. che il codice data sharing sia corretto
+5. che il file sia presente nella cartella condivisa
+6. controlla se e arrivata una mail di recap `OK` oppure una mail con oggetto `ERRORE`
+7. se la mail e presente, leggi il messaggio e i dettagli dell'errore
 
-Se la mail riporta `KO`, controllare anche il log applicativo in:
+Se la mail riporta `KO`, oppure il file non compare, controllare anche il log applicativo in:
 
 ```text
 \\cdabackup\DataSharing\LOG\data_sharing.log
 ```
 
-Se la mail riporta `KO`, oppure il file non compare, usare il recap e le informazioni del log per approfondire il problema.
+## Problemi frequenti
 
-## Casi frequenti
+### Il programma non si apre o dice che non sei autorizzato
+
+Cause possibili:
+
+- non sei entrato in Windows con il tuo utente di dominio
+- stai usando un PC non in dominio
+- hai aperto il programma con un utente locale del PC
+- non fai parte del gruppo autorizzato
+
+Cosa fare:
+
+1. chiudi il programma
+2. prova ad aprirlo con `Esegui come altro utente`
+3. usa il tuo utente di dominio autorizzato
+4. se il problema continua, contatta il supporto IT
 
 ### Il file c'e ma non sembra inviato
 
-In questo caso il file puo essere stato creato correttamente ma non pubblicato. La mail di recap indica a chi e stato inviato oppure segnala che la pubblicazione non e stata eseguita.
+In questo caso il file puo essere stato creato correttamente ma non pubblicato. Se la mail di recap e attiva, la mail indica a chi e stato inviato oppure segnala che la pubblicazione non e stata eseguita.
 
-### Sono presenti due file nella cartella
-
-Se nella cartella trovi anche un file `.ok`, e normale e non devi fare nulla.
+Se arriva una mail con oggetto `ERRORE`, controlla i dettagli presenti nel corpo della mail e poi verifica il log.
 
 ### Non trovo il file
 
-Controllare prima la cartella del socio e poi quella del data sharing dentro:
+Controlla prima la cartella del socio e poi quella del data sharing dentro:
 
 ```text
 \\cdabackup\DataSharing\OutPut
@@ -242,12 +314,22 @@ Controllare prima la cartella del socio e poi quella del data sharing dentro:
 
 Se il file non c'e, l'elaborazione potrebbe non essere arrivata alla fine.
 
-## Quando approfondire il problema
+### Ho copiato il programma sul mio PC ma non parte
 
-Serve fare ulteriori verifiche quando:
+Controlla questi punti:
 
-- il recap segnala errore
+1. hai copiato tutta la cartella, non solo l'exe
+2. `config.json` è nella stessa cartella dell'exe
+3. il PC è in dominio oppure hai usato `Esegui come altro utente`
+4. l'utente usato è autorizzato
+
+## Quando chiedere aiuto
+
+Chiedi supporto quando:
+
+- il programma segnala utente non autorizzato
 - il file non viene creato
 - il file non compare nella cartella condivisa
-- manca la mail finale di recap
+- la mail di recap manca quando dovrebbe arrivare
+- non riesci a usare `Esegui come altro utente`
 - il socio o il data sharing elaborati non sono quelli attesi

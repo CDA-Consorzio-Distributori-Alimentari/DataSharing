@@ -12,6 +12,7 @@ import pandas as pd  # Ensure pandas is imported
 import os
 from pathlib import Path
 import re
+import traceback
 
 class DataSharingOwnerManager:
     def __init__(self):
@@ -29,13 +30,22 @@ class DataSharingOwnerManager:
         self.log = LogManager(self.config.log_file, self.config.log_level)
         self.db_manager = DBManager(self.log)
 
-    def _build_result(self, success, message, output_file=None):
+    def _build_result(self, success, message, output_file=None, error_details=None):
         return {
             "success": success,
             "message": message,
             "output_file": output_file,
             "delivery": None,
+            "error_details": error_details,
         }
+
+    @staticmethod
+    def _is_successful_delivery_result(result):
+        delivery = result.get("delivery") or {}
+        published = delivery.get("published")
+        if published is False:
+            return False
+        return bool(result.get("success"))
 
     @staticmethod
     def _get_socio_row(socio_data):
@@ -61,8 +71,12 @@ class DataSharingOwnerManager:
             subject_parts.append(" ".join(part for part in [socio_code, socio_name] if part).strip())
         return " ".join(part for part in subject_parts if part).strip()
 
-    def _send_summary_message(self, subject, body, log_context):
-        if not self.config.summary_mail_enabled:
+    def _send_summary_message(self, subject, body, log_context, force_send=False):
+        if self.config.debug:
+            self.log.info(f"Modalita debug attiva: mail di recap saltata per {log_context}.")
+            return
+
+        if not force_send and not self.config.summary_mail_enabled:
             self.log.info(f"Mail di recap disabilitata da configurazione. Invio saltato per {log_context}.")
             return
 
@@ -102,13 +116,16 @@ class DataSharingOwnerManager:
     def _send_summary_mail(self, socio, periodo, config_ds: Option, socio_data, result):
         socio_row = self._get_socio_row(socio_data)
         delivery = self._build_delivery_summary(config_ds, result)
-        subject = self._build_summary_subject(config_ds, socio_row)
+        delivery_ok = self._is_successful_delivery_result(result)
+        subject_prefix = "OK" if delivery_ok else "ERRORE"
+        subject = f"{subject_prefix} - {self._build_summary_subject(config_ds, socio_row)}"
 
         socio_code = str(socio_row.get("TC_Soci_Codice", socio) or socio).strip()
         socio_name = str(socio_row.get("TC_Soci_Ragione_Sociale", "") or "").strip()
         recipient_lines = delivery["recipients"] or [""]
         file_lines = delivery["files"] or [os.path.basename(result.get("output_file") or "")]
-        delivery_status = "OK" if result.get("success") else "KO"
+        delivery_status = "OK" if delivery_ok else "KO"
+        error_details = str(result.get("error_details") or "").strip()
 
         body_lines = [
             f"Esito: {delivery_status}",
@@ -129,10 +146,17 @@ class DataSharingOwnerManager:
         if delivery.get("published") is False:
             body_lines.insert(7, "Pubblicazione: non eseguita")
 
+        if error_details:
+            body_lines.extend([
+                "Dettaglio errore:",
+                error_details,
+            ])
+
         self._send_summary_message(
             subject,
             "\n".join(body_lines),
             f"data sharing {config_ds.code}, socio {socio_code}, periodo {periodo}",
+            force_send=not delivery_ok,
         )
 
     def send_aggregated_summary_mail(self, socio, periods, config_ds: Option, socio_data, aggregated_result, period_results):
@@ -141,12 +165,14 @@ class DataSharingOwnerManager:
         socio_name = str(socio_row.get("TC_Soci_Ragione_Sociale", "") or "").strip()
         summary_subject = self._build_summary_subject(config_ds, socio_row)
         year_label = str(periods[0])[:4] if periods else ""
+        aggregate_ok = all(self._is_successful_delivery_result(item) for item in period_results)
+        subject_prefix = "OK" if aggregate_ok else "ERRORE"
         if year_label:
-            summary_subject = f"{summary_subject} - riepilogo annuale {year_label}"
+            summary_subject = f"{subject_prefix} - {summary_subject} - riepilogo annuale {year_label}"
         else:
-            summary_subject = f"{summary_subject} - riepilogo multi-periodo"
+            summary_subject = f"{subject_prefix} - {summary_subject} - riepilogo multi-periodo"
 
-        success_count = sum(1 for item in period_results if item.get("success"))
+        success_count = sum(1 for item in period_results if self._is_successful_delivery_result(item))
         file_lines = []
         detail_lines = []
         for period_value, period_result in zip(periods, period_results):
@@ -159,14 +185,18 @@ class DataSharingOwnerManager:
                 file_lines.append(f"- {period_value}: {file_name}")
             detail_lines.append(
                 "- "
-                + f"{period_value}: {'OK' if period_result.get('success') else 'KO'}"
+                + f"{period_value}: {'OK' if self._is_successful_delivery_result(period_result) else 'KO'}"
                 + f" | Invio: {delivery_targets}"
                 + (f" | File: {', '.join(period_files)}" if period_files else "")
                 + (f" | Messaggio: {period_result.get('message', '')}" if period_result.get("message") else "")
             )
 
+            error_details = str(period_result.get("error_details") or "").strip()
+            if error_details:
+                detail_lines.append(f"  Dettaglio errore: {error_details}")
+
         body_lines = [
-            f"Esito: {'OK' if aggregated_result.get('success') else 'KO'}",
+            f"Esito: {'OK' if aggregate_ok else 'KO'}",
             f"Data sharing codice: {config_ds.code}",
             f"Data sharing nome: {config_ds.name}",
             f"Socio codice: {socio_code}",
@@ -186,6 +216,7 @@ class DataSharingOwnerManager:
             summary_subject,
             "\n".join(body_lines),
             f"data sharing {config_ds.code}, socio {socio_code}, riepilogo annuale {year_label or 'multi-periodo'}",
+            force_send=not aggregate_ok,
         )
 
     def _finalize_result(self, socio, periodo, config_ds: Option, socio_data, result, send_summary_mail=True):
@@ -488,7 +519,7 @@ class DataSharingOwnerManager:
                 periodo,
                 config_ds,
                 socio_data,
-                self._build_result(False, message),
+                self._build_result(False, message, error_details=message),
                 send_summary_mail=send_summary_mail,
             )
         except ValueError as exc:
@@ -502,7 +533,7 @@ class DataSharingOwnerManager:
                 periodo,
                 config_ds,
                 socio_data,
-                self._build_result(False, message),
+                self._build_result(False, message, error_details=message),
                 send_summary_mail=send_summary_mail,
             )
 
@@ -511,6 +542,7 @@ class DataSharingOwnerManager:
             self._save_output_artifact(config_ds, output_file, delivery_stream)
         except Exception as exc:
             message = f"Creazione stream completata ma salvataggio file fallito: {exc}"
+            error_details = traceback.format_exc()
             self.log.error(message)
             if tracking_session is not None:
                 self.coca_cola_tracking_manager.append(tracking_session, "SCRITTURA FILE XML KO")
@@ -520,7 +552,7 @@ class DataSharingOwnerManager:
                 periodo,
                 config_ds,
                 socio_data,
-                self._build_result(False, message),
+                self._build_result(False, message, error_details=error_details),
                 send_summary_mail=send_summary_mail,
             )
 
@@ -536,11 +568,12 @@ class DataSharingOwnerManager:
                 self.coca_cola_tracking_manager.append(tracking_session, "INVIO FILE XML SKIPPED DEBUG")
         except Exception as exc:
             message = f"File generato ma pubblicazione fallita: {exc}"
+            error_details = traceback.format_exc()
             self.log.error(message)
             if tracking_session is not None:
                 self.coca_cola_tracking_manager.append(tracking_session, "INVIO FILE XML KO")
                 self.coca_cola_tracking_manager.persist(tracking_session, output_file)
-            error_result = self._build_result(False, message, output_file)
+            error_result = self._build_result(False, message, output_file, error_details=error_details)
             error_result["delivery"] = {
                 "published": False,
                 "recipients": [],
