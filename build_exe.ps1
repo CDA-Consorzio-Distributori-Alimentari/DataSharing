@@ -194,7 +194,7 @@ function Get-NextPatchVersion {
     return "$major.$minor.$($patch + 1)"
 }
 
-function Update-ApplicationVersion {
+function Get-CurrentApplicationVersion {
     if (-not (Test-Path $VersionFilePath)) {
         throw "File versione non trovato: $VersionFilePath"
     }
@@ -203,6 +203,31 @@ function Update-ApplicationVersion {
     if (-not $currentVersion) {
         throw "Il file VERSION e' vuoto: $VersionFilePath"
     }
+
+    return $currentVersion
+}
+
+function Test-RepositoryHasChangesToRelease {
+    $gitDirectory = Join-Path $ProjectRoot ".git"
+    if (-not (Test-Path $gitDirectory)) {
+        return $false
+    }
+
+    $statusOutput = git status --short
+    if ($LASTEXITCODE -ne 0) {
+        throw "Impossibile leggere lo stato del repository git."
+    }
+
+    $relevantLines = @($statusOutput | Where-Object {
+        $trimmedLine = ($_ | Out-String).Trim()
+        -not [string]::IsNullOrWhiteSpace($trimmedLine) -and $trimmedLine -notmatch '^[ MADRCU?]{1,2}\s+VERSION$'
+    })
+
+    return $relevantLines.Count -gt 0
+}
+
+function Update-ApplicationVersion {
+    $currentVersion = Get-CurrentApplicationVersion
 
     $nextVersion = Get-NextPatchVersion -Version $currentVersion
     $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
@@ -255,8 +280,15 @@ if ($pyInstallerVersionExitCode -ne 0) {
     throw "PyInstaller non installato nell'ambiente selezionato. Eseguire: $PythonCommand $($PythonArgs -join ' ') -m pip install pyinstaller"
 }
 
-$newVersion = Update-ApplicationVersion
-Write-Host "Versione aggiornata a: $newVersion"
+$hasChangesToRelease = Test-RepositoryHasChangesToRelease
+if ($hasChangesToRelease) {
+    $newVersion = Update-ApplicationVersion
+    Write-Host "Versione aggiornata a: $newVersion"
+}
+else {
+    $newVersion = Get-CurrentApplicationVersion
+    Write-Host "Nessuna modifica da rilasciare: release invariata a $newVersion"
+}
 
 if ($Clean) {
     if (Test-Path $DistDir) {
