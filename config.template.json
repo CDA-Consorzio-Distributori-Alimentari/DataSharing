@@ -6,7 +6,6 @@
     ],
     "DEBUG": true,
     "SUMMARY_MAIL_ENABLED": false,
-    "version": "1.1.0",
     "data_sharing_options": [
         {
             "code": "CC001",

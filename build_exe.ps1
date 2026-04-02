@@ -5,22 +5,26 @@ param(
 $ErrorActionPreference = "Stop"
 
 $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$VersionFilePath = Join-Path $ProjectRoot "VERSION"
 $CliSpecFile = Join-Path $ProjectRoot "datasharing.spec"
 $WindowsSpecFile = Join-Path $ProjectRoot "datasharing_windows.spec"
 $DistDir = Join-Path $ProjectRoot "dist"
 $BuildDir = Join-Path $ProjectRoot "build"
 $DeployDir = Join-Path $ProjectRoot "deploy"
+$ReleaseDir = "\\cdabackup\DataSharing\release"
 $CliExePath = Join-Path $DistDir "datasharing.exe"
 $WindowsExePath = Join-Path $DistDir "datasharing_windows.exe"
 $GuidePath = Join-Path $ProjectRoot "GUIDA_UTENTE_DATASHARING.md"
 $ConfigPath = Join-Path $ProjectRoot "config.json"
+$DistVersionPath = Join-Path $DistDir "VERSION"
 $VenvPython = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
 
 $DeployFiles = @(
     "datasharing.exe",
     "datasharing_windows.exe",
     "config.json",
-    "GUIDA_UTENTE_DATASHARING.md"
+    "GUIDA_UTENTE_DATASHARING.md",
+    "VERSION"
 )
 
 function Invoke-NativeCommand {
@@ -75,6 +79,113 @@ function Clear-DirectoryContents {
     }
 }
 
+function Ensure-PackageDirectory {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Label
+    )
+
+    if (Test-Path $Path) {
+        try {
+            Clear-DirectoryContents -Path $Path
+        }
+        catch {
+            throw "Impossibile aggiornare la cartella $Label '$Path'. Chiudere eventuali file aperti e riprovare. Dettaglio: $($_.Exception.Message)"
+        }
+
+        return
+    }
+
+    try {
+        New-Item -ItemType Directory -Path $Path -Force | Out-Null
+    }
+    catch {
+        throw "Impossibile creare la cartella $Label '$Path'. Dettaglio: $($_.Exception.Message)"
+    }
+}
+
+function Publish-Package {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationPath,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Label
+    )
+
+    Ensure-PackageDirectory -Path $DestinationPath -Label $Label
+
+    try {
+        Copy-Item $CliExePath (Join-Path $DestinationPath "datasharing.exe") -Force
+        Copy-Item $WindowsExePath (Join-Path $DestinationPath "datasharing_windows.exe") -Force
+
+        if (Test-Path $ConfigPath) {
+            Copy-Item $ConfigPath (Join-Path $DestinationPath "config.json") -Force
+        }
+
+        if (Test-Path $GuidePath) {
+            Copy-Item $GuidePath (Join-Path $DestinationPath "GUIDA_UTENTE_DATASHARING.md") -Force
+        }
+
+        if (Test-Path $VersionFilePath) {
+            Copy-Item $VersionFilePath (Join-Path $DestinationPath "VERSION") -Force
+        }
+    }
+    catch {
+        throw "Impossibile pubblicare il pacchetto nella cartella $Label '$DestinationPath'. Dettaglio: $($_.Exception.Message)"
+    }
+}
+
+function Get-NextPatchVersion {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Version
+    )
+
+    $parts = $Version.Split('.')
+    if ($parts.Count -ne 3) {
+        throw "Versione non valida '$Version'. Atteso formato major.minor.patch"
+    }
+
+    $major = 0
+    $minor = 0
+    $patch = 0
+
+    if (-not [int]::TryParse($parts[0], [ref]$major)) {
+        throw "Major release non valida in '$Version'."
+    }
+
+    if (-not [int]::TryParse($parts[1], [ref]$minor)) {
+        throw "Minor release non valida in '$Version'."
+    }
+
+    if (-not [int]::TryParse($parts[2], [ref]$patch)) {
+        throw "Patch release non valida in '$Version'."
+    }
+
+    return "$major.$minor.$($patch + 1)"
+}
+
+function Update-ApplicationVersion {
+    if (-not (Test-Path $VersionFilePath)) {
+        throw "File versione non trovato: $VersionFilePath"
+    }
+
+    $currentVersion = (Get-Content -Path $VersionFilePath -Raw).Trim()
+    if (-not $currentVersion) {
+        throw "Il file VERSION e' vuoto: $VersionFilePath"
+    }
+
+    $nextVersion = Get-NextPatchVersion -Version $currentVersion
+    $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+    [System.IO.File]::WriteAllText($VersionFilePath, "$nextVersion`r`n", $utf8NoBom)
+
+    return $nextVersion
+}
+
 if (Test-Path $VenvPython) {
     $PythonCommand = $VenvPython
     $PythonArgs = @()
@@ -93,6 +204,9 @@ if ($pyInstallerVersionExitCode -ne 0) {
     throw "PyInstaller non installato nell'ambiente selezionato. Eseguire: $PythonCommand $($PythonArgs -join ' ') -m pip install pyinstaller"
 }
 
+$newVersion = Update-ApplicationVersion
+Write-Host "Versione aggiornata a: $newVersion"
+
 if ($Clean) {
     if (Test-Path $DistDir) {
         Remove-Item $DistDir -Recurse -Force
@@ -108,6 +222,15 @@ if ($Clean) {
         }
         catch {
             throw "Impossibile pulire la cartella deploy. Chiudere eventuali exe avviati da '$DeployDir' e riprovare. Dettaglio: $($_.Exception.Message)"
+        }
+    }
+
+    if (Test-Path $ReleaseDir) {
+        try {
+            Clear-DirectoryContents -Path $ReleaseDir
+        }
+        catch {
+            throw "Impossibile pulire la cartella release '$ReleaseDir'. Chiudere eventuali file aperti e riprovare. Dettaglio: $($_.Exception.Message)"
         }
     }
 }
@@ -129,6 +252,7 @@ finally {
 }
 
 Copy-Item (Join-Path $ProjectRoot "config.template.json") (Join-Path $DistDir "config.template.json") -Force
+Copy-Item $VersionFilePath $DistVersionPath -Force
 
 if (Test-Path (Join-Path $ProjectRoot "config.json")) {
     Copy-Item (Join-Path $ProjectRoot "config.json") (Join-Path $DistDir "config.json") -Force
@@ -153,15 +277,8 @@ if (-not (Test-Path $WindowsExePath)) {
     throw "Eseguibile Windows non trovato in $WindowsExePath"
 }
 
-Copy-Item $CliExePath (Join-Path $DeployDir "datasharing.exe") -Force
-Copy-Item $WindowsExePath (Join-Path $DeployDir "datasharing_windows.exe") -Force
-
-if (Test-Path $ConfigPath) {
-    Copy-Item $ConfigPath (Join-Path $DeployDir "config.json") -Force
-}
-
-if (Test-Path $GuidePath) {
-    Copy-Item $GuidePath (Join-Path $DeployDir "GUIDA_UTENTE_DATASHARING.md") -Force
-}
+Publish-Package -DestinationPath $DeployDir -Label "deploy locale"
+Publish-Package -DestinationPath $ReleaseDir -Label "release di rete"
 
 Write-Host "Pacchetto deploy pronto in: $DeployDir"
+Write-Host "Pacchetto release pronto in: $ReleaseDir"
