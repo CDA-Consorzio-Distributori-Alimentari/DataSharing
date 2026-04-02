@@ -226,12 +226,13 @@ class DBManager:
             self._log_error(f"Error verifying socio {socio}: {exc}")
             return pd.DataFrame()
 
-    def get_socio_datasharing_relations(self, socio=None, datasharing_code=None, only_enabled=False):
+    def get_socio_datasharing_relations(self, socio=None, datasharing_code=None, only_enabled=False, only_current_tool=False):
         try:
             return self._get_socio_datasharing_repository().get_relations_dataframe(
                 socio_code=socio,
                 datasharing_code=datasharing_code,
                 only_enabled=only_enabled,
+                only_current_tool=only_current_tool,
             )
         except Exception as exc:
             self._log_error(
@@ -249,14 +250,240 @@ class DBManager:
             return relation_row.to_dict()
         return dict(relation_row)
 
+    def set_socio_datasharing_enabled(self, socio, datasharing_code, is_enabled, socio_name=None, datasharing_name=None):
+        normalized_socio = str(socio).strip()
+        normalized_datasharing = str(datasharing_code).strip()
+        normalized_socio_name = str(socio_name or "").strip()
+        normalized_datasharing_name = str(datasharing_name or "").strip()
+
+        try:
+            return self._get_socio_datasharing_repository().set_relation_enabled(
+                normalized_socio,
+                normalized_datasharing,
+                bool(is_enabled),
+                socio_name=normalized_socio_name,
+                datasharing_name=normalized_datasharing_name,
+            )
+        except ModuleNotFoundError:
+            relation_row = self.get_socio_datasharing_relation(normalized_socio, normalized_datasharing)
+            now_value = datetime.now()
+
+            if relation_row:
+                update_query = """
+                    UPDATE [cda].[dbo].[TR_Soci_DataSharing]
+                    SET [Flag_Attivo] = ?,
+                        [DataAggiornamento] = ?,
+                        [TC_Soci_Ragione_Sociale] = CASE WHEN ? = '' THEN [TC_Soci_Ragione_Sociale] ELSE ? END,
+                        [DataSharing_Nome] = CASE WHEN ? = '' THEN [DataSharing_Nome] ELSE ? END
+                    WHERE [TC_Soci_Codice] = ? AND [DataSharing_Code] = ?
+                """
+                self.execute_non_query(
+                    update_query,
+                    [
+                        int(bool(is_enabled)),
+                        now_value,
+                        normalized_socio_name,
+                        normalized_socio_name,
+                        normalized_datasharing_name,
+                        normalized_datasharing_name,
+                        normalized_socio,
+                        normalized_datasharing,
+                    ],
+                )
+                return True
+
+            insert_query = """
+                INSERT INTO [cda].[dbo].[TR_Soci_DataSharing] (
+                    [TC_Soci_Codice],
+                    [TC_Soci_Ragione_Sociale],
+                    [DataSharing_Code],
+                    [DataSharing_Nome],
+                    [WholesalerID],
+                    [Flag_Attivo],
+                    [Flag_Usa_Nuovo_Strumento],
+                    [DataAggiornamento]
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            self.execute_non_query(
+                insert_query,
+                [
+                    normalized_socio,
+                    normalized_socio_name,
+                    normalized_datasharing,
+                    normalized_datasharing_name,
+                    "",
+                    int(bool(is_enabled)),
+                    0,
+                    now_value,
+                ],
+            )
+            return True
+
+    def set_socio_datasharing_tool_enabled(self, socio, datasharing_code, use_new_tool, socio_name=None, datasharing_name=None):
+        normalized_socio = str(socio).strip()
+        normalized_datasharing = str(datasharing_code).strip()
+        normalized_socio_name = str(socio_name or "").strip()
+        normalized_datasharing_name = str(datasharing_name or "").strip()
+
+        try:
+            return self._get_socio_datasharing_repository().set_relation_tool_mode(
+                normalized_socio,
+                normalized_datasharing,
+                bool(use_new_tool),
+                socio_name=normalized_socio_name,
+                datasharing_name=normalized_datasharing_name,
+            )
+        except ModuleNotFoundError:
+            relation_row = self.get_socio_datasharing_relation(normalized_socio, normalized_datasharing)
+            now_value = datetime.now()
+
+            if relation_row:
+                update_query = """
+                    UPDATE [cda].[dbo].[TR_Soci_DataSharing]
+                    SET [Flag_Usa_Nuovo_Strumento] = ?,
+                        [DataAggiornamento] = ?,
+                        [TC_Soci_Ragione_Sociale] = CASE WHEN ? = '' THEN [TC_Soci_Ragione_Sociale] ELSE ? END,
+                        [DataSharing_Nome] = CASE WHEN ? = '' THEN [DataSharing_Nome] ELSE ? END
+                    WHERE [TC_Soci_Codice] = ? AND [DataSharing_Code] = ?
+                """
+                self.execute_non_query(
+                    update_query,
+                    [
+                        int(bool(use_new_tool)),
+                        now_value,
+                        normalized_socio_name,
+                        normalized_socio_name,
+                        normalized_datasharing_name,
+                        normalized_datasharing_name,
+                        normalized_socio,
+                        normalized_datasharing,
+                    ],
+                )
+                return True
+
+            insert_query = """
+                INSERT INTO [cda].[dbo].[TR_Soci_DataSharing] (
+                    [TC_Soci_Codice],
+                    [TC_Soci_Ragione_Sociale],
+                    [DataSharing_Code],
+                    [DataSharing_Nome],
+                    [WholesalerID],
+                    [Flag_Attivo],
+                    [Flag_Usa_Nuovo_Strumento],
+                    [DataAggiornamento]
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            self.execute_non_query(
+                insert_query,
+                [
+                    normalized_socio,
+                    normalized_socio_name,
+                    normalized_datasharing,
+                    normalized_datasharing_name,
+                    "",
+                    0,
+                    int(bool(use_new_tool)),
+                    now_value,
+                ],
+            )
+            return True
+
+    def update_socio_datasharing_configuration(
+        self,
+        socio,
+        datasharing_code,
+        use_new_tool,
+        wholesaler_id=None,
+        socio_name=None,
+        datasharing_name=None,
+    ):
+        normalized_socio = str(socio).strip()
+        normalized_datasharing = str(datasharing_code).strip()
+        normalized_socio_name = str(socio_name or "").strip()
+        normalized_datasharing_name = str(datasharing_name or "").strip()
+        normalized_wholesaler_id = str(wholesaler_id or "").strip()
+
+        try:
+            return self._get_socio_datasharing_repository().update_relation_configuration(
+                normalized_socio,
+                normalized_datasharing,
+                bool(use_new_tool),
+                wholesaler_id=normalized_wholesaler_id,
+                socio_name=normalized_socio_name,
+                datasharing_name=normalized_datasharing_name,
+            )
+        except ModuleNotFoundError:
+            relation_row = self.get_socio_datasharing_relation(normalized_socio, normalized_datasharing)
+            now_value = datetime.now()
+
+            if relation_row:
+                update_query = """
+                    UPDATE [cda].[dbo].[TR_Soci_DataSharing]
+                    SET [Flag_Usa_Nuovo_Strumento] = ?,
+                        [WholesalerID] = ?,
+                        [DataAggiornamento] = ?,
+                        [TC_Soci_Ragione_Sociale] = CASE WHEN ? = '' THEN [TC_Soci_Ragione_Sociale] ELSE ? END,
+                        [DataSharing_Nome] = CASE WHEN ? = '' THEN [DataSharing_Nome] ELSE ? END
+                    WHERE [TC_Soci_Codice] = ? AND [DataSharing_Code] = ?
+                """
+                self.execute_non_query(
+                    update_query,
+                    [
+                        int(bool(use_new_tool)),
+                        normalized_wholesaler_id,
+                        now_value,
+                        normalized_socio_name,
+                        normalized_socio_name,
+                        normalized_datasharing_name,
+                        normalized_datasharing_name,
+                        normalized_socio,
+                        normalized_datasharing,
+                    ],
+                )
+                return True
+
+            insert_query = """
+                INSERT INTO [cda].[dbo].[TR_Soci_DataSharing] (
+                    [TC_Soci_Codice],
+                    [TC_Soci_Ragione_Sociale],
+                    [DataSharing_Code],
+                    [DataSharing_Nome],
+                    [WholesalerID],
+                    [Flag_Attivo],
+                    [Flag_Usa_Nuovo_Strumento],
+                    [DataAggiornamento]
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            self.execute_non_query(
+                insert_query,
+                [
+                    normalized_socio,
+                    normalized_socio_name,
+                    normalized_datasharing,
+                    normalized_datasharing_name,
+                    normalized_wholesaler_id,
+                    0,
+                    int(bool(use_new_tool)),
+                    now_value,
+                ],
+            )
+            return True
+
+    def uses_current_tool_for_datasharing(self, socio, datasharing_code):
+        relation_data = self.get_socio_datasharing_relations(socio=socio, datasharing_code=datasharing_code)
+        if relation_data.empty:
+            return False
+        return bool(int(relation_data.iloc[0].get("Flag_Usa_Nuovo_Strumento", 0) or 0))
+
     def is_socio_enabled_for_datasharing(self, socio, datasharing_code):
         relation_data = self.get_socio_datasharing_relations(socio=socio, datasharing_code=datasharing_code)
         if relation_data.empty:
             return False
-        return bool(int(relation_data.iloc[0].get("Flag_Attivo", 0) or 0))
+        row = relation_data.iloc[0]
+        return bool(int(row.get("Flag_Attivo", 0) or 0)) and bool(int(row.get("Flag_Usa_Nuovo_Strumento", 0) or 0))
 
     def get_enabled_datasharing_codes_for_socio(self, socio):
-        relation_data = self.get_socio_datasharing_relations(socio=socio, only_enabled=True)
+        relation_data = self.get_socio_datasharing_relations(socio=socio, only_enabled=True, only_current_tool=True)
         if relation_data.empty:
             return []
 
@@ -267,8 +494,24 @@ class DBManager:
                 codes.append(code)
         return codes
 
+    def get_datasharing_codes_for_current_tool(self):
+        relation_data = self.get_socio_datasharing_relations(only_current_tool=True)
+        if relation_data.empty:
+            return []
+
+        codes = []
+        for _, row in relation_data.iterrows():
+            code = str(row.get("DataSharing_Code", "") or "").strip()
+            if code and code not in codes:
+                codes.append(code)
+        return codes
+
     def get_enabled_soci_for_datasharing(self, datasharing_code):
-        relation_data = self.get_socio_datasharing_relations(datasharing_code=datasharing_code, only_enabled=True)
+        relation_data = self.get_socio_datasharing_relations(
+            datasharing_code=datasharing_code,
+            only_enabled=True,
+            only_current_tool=True,
+        )
         if relation_data.empty:
             return []
 

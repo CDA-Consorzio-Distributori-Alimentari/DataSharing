@@ -54,10 +54,16 @@ class DataSharingRuntime:
 
     def process_periods_for_socio(self, socio, periods, config_ds: Option):
         results = []
+        send_summary_mail = len(periods) == 1
         for single_period in periods:
-            results.append(self.dso_manager.process_data(socio, single_period, config_ds))
+            results.append(self.dso_manager.process_data(socio, single_period, config_ds, send_summary_mail=send_summary_mail))
 
-        return self.build_aggregated_result(socio, periods, config_ds, results)
+        aggregated_result = self.build_aggregated_result(socio, periods, config_ds, results)
+        if len(periods) > 1:
+            socio_data = self.dso_manager.verify_socio(socio, config_ds.code)
+            self.dso_manager.send_aggregated_summary_mail(socio, periods, config_ds, socio_data, aggregated_result, results)
+
+        return aggregated_result
 
     def build_aggregated_result(self, socio, periods, config_ds: Option, results):
         if not results:
@@ -86,5 +92,53 @@ class DataSharingRuntime:
     def get_sorted_options(self):
         return sorted(self.ds_option.options, key=lambda item: (item.code or "", item.name or ""))
 
+    def get_sorted_options_for_current_tool(self):
+        allowed_codes = set(self.dso_manager.db_manager.get_datasharing_codes_for_current_tool())
+        return [option for option in self.get_sorted_options() if option.code in allowed_codes]
+
     def get_enabled_soci(self, option: Option):
         return self.dso_manager.db_manager.get_enabled_soci_for_datasharing(option.code)
+
+    def get_socio_datasharing_relations(self, socio=None, datasharing_code=None, only_enabled=False, only_current_tool=False):
+        return self.dso_manager.db_manager.get_socio_datasharing_relations(
+            socio=socio,
+            datasharing_code=datasharing_code,
+            only_enabled=only_enabled,
+            only_current_tool=only_current_tool,
+        )
+
+    def set_socio_datasharing_enabled(self, socio, datasharing_code, is_enabled, socio_name=None, datasharing_name=None):
+        return self.dso_manager.db_manager.set_socio_datasharing_enabled(
+            socio,
+            datasharing_code,
+            is_enabled,
+            socio_name=socio_name,
+            datasharing_name=datasharing_name,
+        )
+
+    def set_socio_datasharing_tool_enabled(self, socio, datasharing_code, use_new_tool, socio_name=None, datasharing_name=None):
+        return self.dso_manager.db_manager.set_socio_datasharing_tool_enabled(
+            socio,
+            datasharing_code,
+            use_new_tool,
+            socio_name=socio_name,
+            datasharing_name=datasharing_name,
+        )
+
+    def update_socio_datasharing_configuration(
+        self,
+        socio,
+        datasharing_code,
+        use_new_tool,
+        wholesaler_id=None,
+        socio_name=None,
+        datasharing_name=None,
+    ):
+        return self.dso_manager.db_manager.update_socio_datasharing_configuration(
+            socio,
+            datasharing_code,
+            use_new_tool,
+            wholesaler_id=wholesaler_id,
+            socio_name=socio_name,
+            datasharing_name=datasharing_name,
+        )

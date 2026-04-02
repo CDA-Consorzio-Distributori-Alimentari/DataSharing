@@ -1,4 +1,9 @@
 from services.data_sharing_config import DataSharingOption, Option
+from managers.active_directory_authorization_manager import (
+    ActiveDirectoryAuthorizationManager,
+    AuthorizationError,
+    show_authorization_error_and_exit,
+)
 from managers.data_owner_manager import DataSharingOwnerManager
 from services.config import Config
 import datetime
@@ -56,8 +61,9 @@ class DataSharing:
 
     def _process_periods_for_socio(self, socio, periods, config_ds: Option):
         results = []
+        send_summary_mail = len(periods) == 1
         for single_period in periods:
-            results.append(self.dso_manager.process_data(socio, single_period, config_ds))
+            results.append(self.dso_manager.process_data(socio, single_period, config_ds, send_summary_mail=send_summary_mail))
 
         if len(results) == 1:
             return results[0]
@@ -69,23 +75,55 @@ class DataSharing:
             f"Elaborazione annuale completata per socio {socio}, data sharing {config_ds.code}. "
             f"Periodi elaborati: {len(successful_results)}/{len(results)}."
         )
-        return {
+        aggregated_result = {
             "success": success,
             "message": message,
             "output_file": ";".join(output_files) if output_files else None,
         }
+        socio_data = self.dso_manager.verify_socio(socio, config_ds.code)
+        self.dso_manager.send_aggregated_summary_mail(socio, periods, config_ds, socio_data, aggregated_result, results)
+        return aggregated_result
 
     def _process_periods_for_all_soci(self, periods, config_ds: Option):
         processed_count = 0
+        send_summary_mail = len(periods) == 1
         for socio_row in self.dso_manager.db_manager.get_enabled_soci_for_datasharing(config_ds.code):
             socio_item = socio_row["code"]
             socio_data = self.dso_manager.verify_socio(socio_item)
             if socio_data is None or socio_data.empty:
                 continue
 
+            socio_results = []
             for single_period in periods:
-                self.dso_manager.process_data(socio_item, single_period, config_ds)
+                socio_results.append(
+                    self.dso_manager.process_data(
+                        socio_item,
+                        single_period,
+                        config_ds,
+                        send_summary_mail=send_summary_mail,
+                    )
+                )
                 processed_count += 1
+
+            if len(periods) > 1 and socio_results:
+                successful_results = [result for result in socio_results if result.get("success")]
+                output_files = [result.get("output_file") for result in successful_results if result.get("output_file")]
+                aggregated_result = {
+                    "success": len(successful_results) == len(socio_results),
+                    "message": (
+                        f"Elaborazione annuale completata per socio {socio_item}, data sharing {config_ds.code}. "
+                        f"Periodi elaborati: {len(successful_results)}/{len(socio_results)}."
+                    ),
+                    "output_file": ";".join(output_files) if output_files else None,
+                }
+                self.dso_manager.send_aggregated_summary_mail(
+                    socio_item,
+                    periods,
+                    config_ds,
+                    socio_data,
+                    aggregated_result,
+                    socio_results,
+                )
 
         return processed_count
 
@@ -186,7 +224,10 @@ class DataSharing:
 
     def print_data_sharing_list(self):
         print("DATA SHARING DISPONIBILI:")
+        managed_codes = set(self.dso_manager.db_manager.get_datasharing_codes_for_current_tool())
         for option in sorted(self.ds_option.options, key=lambda item: (item.code or "", item.name or "")):
+            if option.code not in managed_codes:
+                continue
             print(f"- {option.code} | {option.name} | {option.file_type}")
 
     def command_line_mode(self):
@@ -227,6 +268,10 @@ class DataSharing:
             self.log.error(f"Data sharing '{datasharing_name}' non trovato. Uscita.")
             return
 
+        if config_ds.code not in set(self.dso_manager.db_manager.get_datasharing_codes_for_current_tool()):
+            self.log.warning(f"Il data sharing '{datasharing_name}' non e' gestito da questo programma. Uscita.")
+            return
+
         # If socio is provided, validate it
         if socio:
             socio_data = self.dso_manager.verify_socio(socio)
@@ -238,7 +283,12 @@ class DataSharing:
                 result = self._process_periods_for_socio(socio, periods, config_ds)
                 self.log.info(result["message"])
             else:
-                self.log.warning(f"Il socio {socio} non è abilitato per il data sharing '{datasharing_name}'. Uscita.")
+                if not self.dso_manager.db_manager.uses_current_tool_for_datasharing(socio, config_ds.code):
+                    self.log.warning(
+                        f"Il socio {socio} per il data sharing '{datasharing_name}' deve usare lo strumento vecchio. Uscita."
+                    )
+                else:
+                    self.log.warning(f"Il socio {socio} non è abilitato per il data sharing '{datasharing_name}'. Uscita.")
         else:
             # Process for all enabled soci
             processed_count = self._process_periods_for_all_soci(periods, config_ds)
@@ -277,6 +327,15 @@ class DataSharing:
             self.interactive_mode()
 
 
+def main():
+    try:
+        ActiveDirectoryAuthorizationManager().ensure_current_user_is_authorized()
+    except AuthorizationError as exc:
+        show_authorization_error_and_exit(str(exc))
+
+    app = DataSharing()
+    app.main()
+
+
 if __name__ == "__main__":
-    f= DataSharing()
-    f.main()
+    main()

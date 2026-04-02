@@ -115,6 +115,10 @@ class Config:
         return self._debug
 
     @property
+    def summary_mail_enabled(self):
+        return self._summary_mail_enabled
+
+    @property
     def version(self):
         return self._version
 
@@ -233,6 +237,9 @@ class Config:
         )
         self._db_path = config_data.get("db_path", "data_sharing.db")
         self._debug = bool(config_data.get("debug", config_data.get("DEBUG", False)))
+        self._summary_mail_enabled = bool(
+            config_data.get("summary_mail_enabled", config_data.get("SUMMARY_MAIL_ENABLED", False))
+        )
         self._app_name = APP_NAME
         self._app_version = APP_VERSION
         self._company_name = COMPANY_NAME

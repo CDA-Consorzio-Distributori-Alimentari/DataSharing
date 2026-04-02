@@ -25,7 +25,7 @@ Il programma DataSharing:
 - genera il file richiesto per uno specifico data sharing
 - salva il file nella cartella condivisa aziendale
 - invia il file al destinatario configurato
-- manda una mail finale di recap con il riepilogo dell'operazione
+- puo inviare una mail finale di recap con il riepilogo dell'operazione, se il flag dedicato e attivo
 
 ## Come lanciare il programma
 
@@ -158,13 +158,17 @@ In alcuni casi, oltre al file principale, nella cartella puo comparire anche un 
 
 ## Cosa succede dopo il lancio
 
-Quando il comando parte, il programma verifica nella tabella `TR_Soci_DataSharing` se il socio e abilitato al data sharing richiesto. Se il socio non risulta abilitato, l'elaborazione non prosegue. Se invece e abilitato, il programma genera il file, lo salva nella cartella condivisa, lo invia e manda una mail finale di recap.
+Quando il comando parte, il programma verifica nella tabella `TR_Soci_DataSharing` se il socio e abilitato al data sharing richiesto. Se il socio non risulta abilitato, l'elaborazione non prosegue. Se invece e abilitato, il programma genera il file, lo salva nella cartella condivisa, lo invia e, se abilitata, manda una mail finale di recap.
 
 In pratica, per ogni coppia socio e data sharing esiste una riga dedicata. Se `Flag_Attivo` vale `1`, il socio e abilitato. Se vale `0`, non e abilitato.
 
 ## La mail di recap
 
-Alla fine di ogni elaborazione viene inviata una mail di riepilogo interno.
+La mail di riepilogo interno e opzionale ed e disattivata di default.
+
+Quando il flag `MAIL RECAP` e attivo nella finestra principale, il programma invia il riepilogo alla fine dell'elaborazione.
+
+Se viene richiesto un anno intero (`YYYY`), il programma invia una sola mail complessiva per socio invece di una mail per ogni mese.
 
 La mail di recap arriva alla casella:
 
@@ -196,8 +200,8 @@ Di norma l'elaborazione e corretta quando:
 
 1. il comando termina senza errori
 2. il file compare nella cartella `\\cdabackup\DataSharing\OutPut\...`
-3. arriva la mail di recap
-4. nella mail il risultato e `OK`
+3. se il flag `MAIL RECAP` e attivo, arriva la mail di recap
+4. se presente, nella mail il risultato e `OK`
 
 ## Cosa controllare se qualcosa non va
 
@@ -207,8 +211,8 @@ Se l'elaborazione non produce il risultato atteso, controllare in questo ordine:
 2. che il periodo sia corretto
 3. che il codice data sharing sia corretto
 4. che il file sia presente nella cartella condivisa
-5. che sia arrivata la mail di recap
-6. che la mail riporti `OK`
+5. se il flag `MAIL RECAP` e attivo, che sia arrivata la mail di recap
+6. se presente, che la mail riporti `OK`
 
 Se la mail riporta `KO`, controllare anche il log applicativo in:
 

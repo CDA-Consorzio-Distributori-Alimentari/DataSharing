@@ -61,6 +61,18 @@ class DataSharingOwnerManager:
             subject_parts.append(" ".join(part for part in [socio_code, socio_name] if part).strip())
         return " ".join(part for part in subject_parts if part).strip()
 
+    def _send_summary_message(self, subject, body, log_context):
+        if not self.config.summary_mail_enabled:
+            self.log.info(f"Mail di recap disabilitata da configurazione. Invio saltato per {log_context}.")
+            return
+
+        try:
+            self.log.info(f"Invio mail di recap verso {self.mail_manager.summary_recipient} per {log_context}.")
+            self.mail_manager.send_summary_mail(subject, body)
+            self.log.info(f"Mail di recap inviata verso {self.mail_manager.summary_recipient} per {log_context}.")
+        except Exception as exc:
+            self.log.error(f"Invio mail di recap fallito: {exc}")
+
     @staticmethod
     def _build_delivery_summary(config_ds: Option, result):
         delivery = result.get("delivery") or {}
@@ -117,19 +129,68 @@ class DataSharingOwnerManager:
         if delivery.get("published") is False:
             body_lines.insert(7, "Pubblicazione: non eseguita")
 
-        try:
-            self.log.info(
-                f"Invio mail di recap verso {self.mail_manager.summary_recipient} per data sharing {config_ds.code}, socio {socio_code}, periodo {periodo}."
-            )
-            self.mail_manager.send_summary_mail(subject, "\n".join(body_lines))
-            self.log.info(
-                f"Mail di recap inviata verso {self.mail_manager.summary_recipient} per data sharing {config_ds.code}, socio {socio_code}, periodo {periodo}."
-            )
-        except Exception as exc:
-            self.log.error(f"Invio mail di recap fallito: {exc}")
+        self._send_summary_message(
+            subject,
+            "\n".join(body_lines),
+            f"data sharing {config_ds.code}, socio {socio_code}, periodo {periodo}",
+        )
 
-    def _finalize_result(self, socio, periodo, config_ds: Option, socio_data, result):
-        self._send_summary_mail(socio, periodo, config_ds, socio_data, result)
+    def send_aggregated_summary_mail(self, socio, periods, config_ds: Option, socio_data, aggregated_result, period_results):
+        socio_row = self._get_socio_row(socio_data)
+        socio_code = str(socio_row.get("TC_Soci_Codice", socio) or socio).strip()
+        socio_name = str(socio_row.get("TC_Soci_Ragione_Sociale", "") or "").strip()
+        summary_subject = self._build_summary_subject(config_ds, socio_row)
+        year_label = str(periods[0])[:4] if periods else ""
+        if year_label:
+            summary_subject = f"{summary_subject} - riepilogo annuale {year_label}"
+        else:
+            summary_subject = f"{summary_subject} - riepilogo multi-periodo"
+
+        success_count = sum(1 for item in period_results if item.get("success"))
+        file_lines = []
+        detail_lines = []
+        for period_value, period_result in zip(periods, period_results):
+            delivery = self._build_delivery_summary(config_ds, period_result)
+            delivery_targets = ", ".join(delivery["recipients"]) if delivery["recipients"] else "n.d."
+            period_files = delivery["files"] or []
+            if not period_files and period_result.get("output_file"):
+                period_files = [os.path.basename(period_result.get("output_file"))]
+            for file_name in period_files:
+                file_lines.append(f"- {period_value}: {file_name}")
+            detail_lines.append(
+                "- "
+                + f"{period_value}: {'OK' if period_result.get('success') else 'KO'}"
+                + f" | Invio: {delivery_targets}"
+                + (f" | File: {', '.join(period_files)}" if period_files else "")
+                + (f" | Messaggio: {period_result.get('message', '')}" if period_result.get("message") else "")
+            )
+
+        body_lines = [
+            f"Esito: {'OK' if aggregated_result.get('success') else 'KO'}",
+            f"Data sharing codice: {config_ds.code}",
+            f"Data sharing nome: {config_ds.name}",
+            f"Socio codice: {socio_code}",
+            f"Socio nome: {socio_name}",
+            f"Anno richiesto: {year_label}",
+            f"Periodi richiesti: {', '.join(periods)}",
+            f"Periodi elaborati con successo: {success_count}/{len(period_results)}",
+            "Elenco file:",
+            *(file_lines or ["- Nessun file generato"]),
+            "Dettaglio periodi:",
+            *detail_lines,
+            f"Messaggio finale: {aggregated_result.get('message', '')}",
+            f"Percorsi locali: {aggregated_result.get('output_file') or ''}",
+        ]
+
+        self._send_summary_message(
+            summary_subject,
+            "\n".join(body_lines),
+            f"data sharing {config_ds.code}, socio {socio_code}, riepilogo annuale {year_label or 'multi-periodo'}",
+        )
+
+    def _finalize_result(self, socio, periodo, config_ds: Option, socio_data, result, send_summary_mail=True):
+        if send_summary_mail:
+            self._send_summary_mail(socio, periodo, config_ds, socio_data, result)
         return result
 
     def _build_output_directory(self, socio, config_ds: Option):
@@ -386,7 +447,7 @@ class DataSharingOwnerManager:
         # # Log the operation
         # self.log(f"Processed data for {owner} in {mode} mode and sent via FTP and email.")
 
-    def process_data(self, socio, periodo, config_ds :Option): 
+    def process_data(self, socio, periodo, config_ds :Option, send_summary_mail=True): 
         # Il risultato ritorna sempre in forma strutturata, così il metodo
         # può essere riusato sia da CLI sia da una futura API.
         self.log.info(f"Avvio elaborazione per socio {socio}, periodo {periodo}, data sharing {config_ds.code}.")
@@ -401,7 +462,7 @@ class DataSharingOwnerManager:
             if tracking_session is not None:
                 self.coca_cola_tracking_manager.append(tracking_session, "ERRORE LETTURA QUERY")
                 self.coca_cola_tracking_manager.persist(tracking_session)
-            return self._finalize_result(socio, periodo, config_ds, socio_data, error_result)
+            return self._finalize_result(socio, periodo, config_ds, socio_data, error_result, send_summary_mail=send_summary_mail)
 
         # 2. Eseguo la query e ottengo il dataset da esportare.
         database_results = self.db_manager.fetch_all(query)
@@ -422,14 +483,28 @@ class DataSharingOwnerManager:
             if tracking_session is not None:
                 self.coca_cola_tracking_manager.append(tracking_session, "SCRITTURA FILE XML KO")
                 self.coca_cola_tracking_manager.persist(tracking_session)
-            return self._finalize_result(socio, periodo, config_ds, socio_data, self._build_result(False, message))
+            return self._finalize_result(
+                socio,
+                periodo,
+                config_ds,
+                socio_data,
+                self._build_result(False, message),
+                send_summary_mail=send_summary_mail,
+            )
         except ValueError as exc:
             message = str(exc)
             self.log.error(message)
             if tracking_session is not None:
                 self.coca_cola_tracking_manager.append(tracking_session, "SCRITTURA FILE XML KO")
                 self.coca_cola_tracking_manager.persist(tracking_session)
-            return self._finalize_result(socio, periodo, config_ds, socio_data, self._build_result(False, message))
+            return self._finalize_result(
+                socio,
+                periodo,
+                config_ds,
+                socio_data,
+                self._build_result(False, message),
+                send_summary_mail=send_summary_mail,
+            )
 
         # 4. Salvo il file in un punto unico, indipendente dal tipo output.
         try:
@@ -440,7 +515,14 @@ class DataSharingOwnerManager:
             if tracking_session is not None:
                 self.coca_cola_tracking_manager.append(tracking_session, "SCRITTURA FILE XML KO")
                 self.coca_cola_tracking_manager.persist(tracking_session, output_file)
-            return self._finalize_result(socio, periodo, config_ds, socio_data, self._build_result(False, message))
+            return self._finalize_result(
+                socio,
+                periodo,
+                config_ds,
+                socio_data,
+                self._build_result(False, message),
+                send_summary_mail=send_summary_mail,
+            )
 
         # 5. Pubblico il file sul canale di consegna configurato.
         try:
@@ -464,7 +546,14 @@ class DataSharingOwnerManager:
                 "recipients": [],
                 "files": [os.path.basename(output_file)],
             }
-            return self._finalize_result(socio, periodo, config_ds, socio_data, error_result)
+            return self._finalize_result(
+                socio,
+                periodo,
+                config_ds,
+                socio_data,
+                error_result,
+                send_summary_mail=send_summary_mail,
+            )
 
         if tracking_session is not None:
             self.coca_cola_tracking_manager.persist(tracking_session, output_file)
@@ -477,7 +566,14 @@ class DataSharingOwnerManager:
 
         success_result = self._build_result(True, message, output_file)
         success_result["delivery"] = delivery_details
-        return self._finalize_result(socio, periodo, config_ds, socio_data, success_result)
+        return self._finalize_result(
+            socio,
+            periodo,
+            config_ds,
+            socio_data,
+            success_result,
+            send_summary_mail=send_summary_mail,
+        )
         
     def verify_socio(self, socio, datasharing_code=None):
         return self.db_manager.verify_socio(socio, datasharing_code)

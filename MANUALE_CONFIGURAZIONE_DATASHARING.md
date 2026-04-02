@@ -286,9 +286,32 @@ Le abilitazioni socio/data sharing vengono lette dalla tabella `TR_Soci_DataShar
 
 ## 10. Configurazione Invio e Recap
 
-L'invio operativo e il recap finale usano la sezione `mail_config` del file di configurazione.
+L'invio operativo usa la sezione `mail_config` del file di configurazione.
+
+La mail di recap interna usa sempre `mail_config`, ma l'attivazione dipende anche dal flag root `SUMMARY_MAIL_ENABLED`, che di default e `false`.
 
 Esempio:
+
+```json
+"SUMMARY_MAIL_ENABLED": false,
+"mail_config": {
+  "smtp_server": "spamfight.mdsnet.it",
+  "port": 26,
+  "user": "email_user",
+  "password": "email_password",
+  "sender_email": "dwh@cdaweb.it",
+  "summary_sender_email": "norepy@cdaweb.it",
+  "summary_recipient": "dwh@cdaweb.it"
+}
+```
+
+Se `SUMMARY_MAIL_ENABLED` e `false`, il programma non spedisce recap.
+
+Se `SUMMARY_MAIL_ENABLED` e `true`, il recap viene inviato a `summary_recipient`.
+
+Per i lanci annuali (`YYYY`) viene inviata una sola mail complessiva per socio, non una mail per ogni mese.
+
+Esempio del solo blocco mail:
 
 ```json
 "mail_config": {

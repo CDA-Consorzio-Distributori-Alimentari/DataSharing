@@ -13,6 +13,10 @@ class DataSharingService:
                 return option
         return None
 
+    def is_option_managed_by_current_tool(self, code):
+        allowed_codes = set(self.dso_manager.db_manager.get_datasharing_codes_for_current_tool())
+        return str(code or "").strip() in allowed_codes
+
     def get_active_options(self, socio_data):
         socio_code = ""
         if hasattr(socio_data, "empty") and not socio_data.empty:
@@ -36,6 +40,13 @@ class DataSharingService:
                 "output_file": None,
             }
 
+        if not self.is_option_managed_by_current_tool(datasharing_code):
+            return {
+                "success": False,
+                "message": f"Il data sharing '{datasharing_code}' non e' gestito da questo programma.",
+                "output_file": None,
+            }
+
         socio_data = self.dso_manager.verify_socio(socio)
         if socio_data is None or socio_data.empty:
             return {
@@ -45,6 +56,12 @@ class DataSharingService:
             }
 
         if not self.dso_manager.db_manager.is_socio_enabled_for_datasharing(socio, option.code):
+            if not self.dso_manager.db_manager.uses_current_tool_for_datasharing(socio, option.code):
+                return {
+                    "success": False,
+                    "message": f"Il socio {socio} per il data sharing '{datasharing_code}' deve usare lo strumento vecchio.",
+                    "output_file": None,
+                }
             return {
                 "success": False,
                 "message": f"Il socio {socio} non è abilitato per il data sharing '{datasharing_code}'.",

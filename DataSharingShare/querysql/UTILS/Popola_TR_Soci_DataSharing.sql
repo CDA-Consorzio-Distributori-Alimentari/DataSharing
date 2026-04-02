@@ -9,6 +9,7 @@ SET NOCOUNT ON;
     - vengono considerati solo i soci attivi (TC_Soci_Socio_Attivo = 1)
     - viene generata una riga per ogni combinazione socio/data sharing
     - Flag_Attivo indica se il socio e abilitato a quel data sharing
+    - Flag_Usa_Nuovo_Strumento indica se il data sharing deve essere gestito da questo applicativo
     - Ferrero non viene incluso perche al momento non e configurato in config.json
 */
 
@@ -26,6 +27,7 @@ BEGIN
         [DataSharing_Nome]          VARCHAR(100) NOT NULL,
         [WholesalerID]              VARCHAR(50)  NULL,
         [Flag_Attivo]               BIT          NOT NULL,
+        [Flag_Usa_Nuovo_Strumento]  BIT          NOT NULL,
         [DataAggiornamento]         DATETIME2(0) NOT NULL,
         CONSTRAINT [PK_TR_Soci_DataSharing]
             PRIMARY KEY CLUSTERED ([TC_Soci_Codice], [DataSharing_Code])
@@ -45,6 +47,7 @@ END;
             ELSE NULL
         END AS [WholesalerID],
         CAST(ds.[Flag_Attivo] AS BIT) AS [Flag_Attivo],
+        CAST(CASE WHEN ds.[DataSharing_Code] IN ('CC001', 'CC002') THEN 1 ELSE 0 END AS BIT) AS [Flag_Usa_Nuovo_Strumento],
         SYSDATETIME() AS [DataAggiornamento]
     FROM [dbo].[TC_Soci] AS s
     CROSS APPLY
@@ -67,6 +70,7 @@ INSERT INTO [dbo].[TR_Soci_DataSharing]
     [DataSharing_Nome],
     [WholesalerID],
     [Flag_Attivo],
+    [Flag_Usa_Nuovo_Strumento],
     [DataAggiornamento]
 )
 SELECT
@@ -76,6 +80,7 @@ SELECT
     [DataSharing_Nome],
     [WholesalerID],
     [Flag_Attivo],
+    [Flag_Usa_Nuovo_Strumento],
     [DataAggiornamento]
 FROM SourceRows;
 
@@ -86,6 +91,7 @@ SELECT
     [DataSharing_Nome],
     [WholesalerID],
     [Flag_Attivo],
+    [Flag_Usa_Nuovo_Strumento],
     [DataAggiornamento]
 FROM [dbo].[TR_Soci_DataSharing]
 ORDER BY [TC_Soci_Codice], [DataSharing_Code];
