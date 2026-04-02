@@ -50,6 +50,8 @@ class _TOKEN_GROUPS(ctypes.Structure):
 
 class ActiveDirectoryAuthorizationManager:
     DEFAULT_ALLOWED_GROUP = "CDA_IT"
+    WHOAMI_TIMEOUT_SECONDS = 4
+    POWERSHELL_TIMEOUT_SECONDS = 6
     # OID LDAP di Active Directory per il matching ricorsivo della membership.
     # Permette di verificare se l'utente appartiene a un gruppo anche tramite
     # catene di sottogruppi annidati, non solo membership diretta.
@@ -62,6 +64,24 @@ class ActiveDirectoryAuthorizationManager:
         self._advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
         self._kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
         self.log = LogManager()
+
+    @staticmethod
+    def _get_hidden_subprocess_kwargs():
+        startupinfo = None
+        creationflags = 0
+
+        if hasattr(subprocess, "STARTUPINFO"):
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = 0
+
+        if hasattr(subprocess, "CREATE_NO_WINDOW"):
+            creationflags = subprocess.CREATE_NO_WINDOW
+
+        return {
+            "startupinfo": startupinfo,
+            "creationflags": creationflags,
+        }
 
     @staticmethod
     def _normalize_group_name(group_name):
@@ -85,12 +105,19 @@ class ActiveDirectoryAuthorizationManager:
 
     def _read_current_user_groups_from_whoami(self):
         self.log.info("Lettura gruppi utente tramite fallback whoami /groups.")
-        completed_process = subprocess.run(
-            ["whoami", "/groups", "/fo", "csv", "/nh"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
+        try:
+            completed_process = subprocess.run(
+                ["whoami", "/groups", "/fo", "csv", "/nh"],
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=self.WHOAMI_TIMEOUT_SECONDS,
+                **self._get_hidden_subprocess_kwargs(),
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise TimeoutError(
+                f"whoami /groups non ha risposto entro {self.WHOAMI_TIMEOUT_SECONDS} secondi"
+            ) from exc
 
         group_names = []
         for row in csv.reader(completed_process.stdout.splitlines()):
@@ -229,11 +256,28 @@ class ActiveDirectoryAuthorizationManager:
         return is_authorized
 
     def _run_powershell_boolean_script(self, script_text, operation_label):
-        completed_process = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script_text],
-            capture_output=True,
-            text=True,
-        )
+        try:
+            completed_process = subprocess.run(
+                [
+                    "powershell",
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-WindowStyle",
+                    "Hidden",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-Command",
+                    script_text,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=self.POWERSHELL_TIMEOUT_SECONDS,
+                **self._get_hidden_subprocess_kwargs(),
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise TimeoutError(
+                f"{operation_label}: timeout oltre {self.POWERSHELL_TIMEOUT_SECONDS} secondi"
+            ) from exc
 
         stdout_text = str(completed_process.stdout or "").strip()
         stderr_text = str(completed_process.stderr or "").strip()

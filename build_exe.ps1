@@ -38,9 +38,17 @@ function Invoke-NativeCommand {
 
     $stdoutPath = [System.IO.Path]::GetTempFileName()
     $stderrPath = [System.IO.Path]::GetTempFileName()
+    $argumentListText = ($Arguments | ForEach-Object {
+        if ($_ -match '[\s"]') {
+            '"{0}"' -f ($_ -replace '"', '\"')
+        }
+        else {
+            $_
+        }
+    }) -join ' '
 
     try {
-        $process = Start-Process -FilePath $FilePath -ArgumentList $Arguments -NoNewWindow -Wait -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+        $process = Start-Process -FilePath $FilePath -ArgumentList $argumentListText -NoNewWindow -Wait -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
 
         if (Test-Path $stdoutPath) {
             Get-Content $stdoutPath | ForEach-Object { Write-Host $_ }
@@ -59,6 +67,23 @@ function Invoke-NativeCommand {
         if (Test-Path $stderrPath) {
             Remove-Item $stderrPath -Force -ErrorAction SilentlyContinue
         }
+    }
+}
+
+function Invoke-GitCommand {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments,
+
+        [string]$ErrorMessage
+    )
+
+    $exitCode = Invoke-NativeCommand -FilePath "git" -Arguments $Arguments
+    if ($exitCode -ne 0) {
+        if ([string]::IsNullOrWhiteSpace($ErrorMessage)) {
+            throw "Comando git fallito: git $($Arguments -join ' ')"
+        }
+        throw $ErrorMessage
     }
 }
 
@@ -186,6 +211,32 @@ function Update-ApplicationVersion {
     return $nextVersion
 }
 
+function Publish-GitReleaseVersion {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Version
+    )
+
+    $gitDirectory = Join-Path $ProjectRoot ".git"
+    if (-not (Test-Path $gitDirectory)) {
+        Write-Host "Repository git non trovato. Commit e push release saltati."
+        return
+    }
+
+    $repositoryStatus = git status --short
+    if ([string]::IsNullOrWhiteSpace(($repositoryStatus | Out-String).Trim())) {
+        Write-Host "Nessuna modifica nel repository da committare."
+        return
+    }
+
+    $commitTitle = "Release patch $Version to \\cdabackup\\DataSharing\\release"
+    $commitBody = "Automatic build release commit for all repository changes generated or pending at build time."
+
+    Invoke-GitCommand -Arguments @("add", "--all") -ErrorMessage "Impossibile aggiungere tutti i file all'indice git."
+    Invoke-GitCommand -Arguments @("commit", "-m", $commitTitle, "-m", $commitBody) -ErrorMessage "Impossibile creare il commit git della release $Version."
+    Invoke-GitCommand -Arguments @("push", "origin", "HEAD") -ErrorMessage "Impossibile eseguire il push git della release $Version verso origin."
+}
+
 if (Test-Path $VenvPython) {
     $PythonCommand = $VenvPython
     $PythonArgs = @()
@@ -279,6 +330,7 @@ if (-not (Test-Path $WindowsExePath)) {
 
 Publish-Package -DestinationPath $DeployDir -Label "deploy locale"
 Publish-Package -DestinationPath $ReleaseDir -Label "release di rete"
+Publish-GitReleaseVersion -Version $newVersion
 
 Write-Host "Pacchetto deploy pronto in: $DeployDir"
 Write-Host "Pacchetto release pronto in: $ReleaseDir"

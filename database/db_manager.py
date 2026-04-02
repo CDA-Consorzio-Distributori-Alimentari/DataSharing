@@ -1,5 +1,7 @@
 import importlib
 from datetime import datetime
+import getpass
+import os
 
 import pandas as pd
 import pyodbc
@@ -20,6 +22,35 @@ class DBManager:
         self._socio_datasharing_repository = None
         self._coca_cola_tracking_repository = None
 
+    @staticmethod
+    def _get_logged_user_for_session_context():
+        domain_name = str(os.environ.get("USERDOMAIN", "")).strip()
+        username = str(os.environ.get("USERNAME", "")).strip() or getpass.getuser()
+        if domain_name and username and username.upper() != "SYSTEM":
+            return f"{domain_name}\\{username}"
+        return username
+
+    def _apply_session_context(self, connection):
+        session_user = self._get_logged_user_for_session_context()
+        try:
+            cursor = connection.cursor()
+            try:
+                cursor.execute(
+                    "EXEC sys.sp_set_session_context @key=N'NOM_USER', @value=?",
+                    [session_user],
+                )
+            finally:
+                cursor.close()
+        except Exception as exc:
+            self._log_warning(
+                f"Impossibile valorizzare SESSION_CONTEXT(N'NOM_USER') con l'utente {session_user}: {exc}"
+            )
+
+    def _open_pyodbc_connection(self):
+        connection = pyodbc.connect(self.connection_string)
+        self._apply_session_context(connection)
+        return connection
+
     def _log_warning(self, message):
         if self.log_manager is not None:
             self.log_manager.warning(message)
@@ -29,7 +60,7 @@ class DBManager:
             self.log_manager.error(message)
 
     def execute_query(self, query, params=None):
-        with pyodbc.connect(self.connection_string) as conn:
+        with self._open_pyodbc_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(query, params or [])
             conn.commit()
@@ -38,7 +69,7 @@ class DBManager:
             return pd.DataFrame(data, columns=columns)
 
     def _fetch_all_with_pyodbc(self, query, params=None):
-        with pyodbc.connect(self.connection_string) as conn:
+        with self._open_pyodbc_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(query, params or [])
             columns = [column[0] for column in cursor.description]
@@ -54,13 +85,13 @@ class DBManager:
             return self._fetch_all_with_pyodbc(query, params)
 
     def fetch_one(self, query, params=None):
-        with pyodbc.connect(self.connection_string) as conn:
+        with self._open_pyodbc_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(query, params or [])
             return cursor.fetchone()
 
     def execute_non_query(self, query, params=None):
-        with pyodbc.connect(self.connection_string) as conn:
+        with self._open_pyodbc_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(query, params or [])
             conn.commit()
@@ -108,7 +139,12 @@ class DBManager:
                 future=True,
                 use_setinputsizes=False,
             )
+            sqlalchemy.event.listen(self._sqlalchemy_engine, "connect", self._on_sqlalchemy_connect)
         return self._sqlalchemy_engine
+
+    def _on_sqlalchemy_connect(self, dbapi_connection, connection_record):
+        del connection_record
+        self._apply_session_context(dbapi_connection)
 
     def _parse_table_name(self, configured_table_name):
         parts = [part.strip().strip("[]") for part in configured_table_name.split(".") if part.strip()]
