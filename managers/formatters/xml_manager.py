@@ -381,13 +381,14 @@ class XMLManager:
         return inferred_types
 
     def _format_source_value(self, value, value_type: str):
+        clean_value = self.clean_xml_string(value)  
         if value_type == "integer":
-            if pd.isna(value):
+            if pd.isna(clean_value):
                 return ""
-            return str(int(value))
+            return str(int(clean_value))
         if value_type == "decimal_10_3":
-            return self._to_decimal_10_3(value)
-        return self._to_text(value)
+            return self._to_decimal_10_3(clean_value)
+        return self._to_text(clean_value)
 
     def _section_group_keys(self, option: Option, section, section_df: pd.DataFrame):
         grouping = getattr(option, "xml_grouping", None) or {}
@@ -516,3 +517,10 @@ class XMLManager:
         transformed_data = self.build_xml_content(db_content, params, periodo)
         self._save_xml(transformed_data, output_file_path)
         return transformed_data
+
+
+    def clean_xml_string(self, s):
+        # Rimuove caratteri di controllo non permessi in XML (tranne tab, newline, carriage return)
+        if not isinstance(s, str):
+            return s
+        return re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', s)
