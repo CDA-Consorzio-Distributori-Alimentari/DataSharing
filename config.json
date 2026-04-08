@@ -1,5 +1,5 @@
 {
-    "DEBUG": false,
+    "DEBUG": true,
     "SUMMARY_MAIL_ENABLED": false,
     "data_sharing_options": [
         {

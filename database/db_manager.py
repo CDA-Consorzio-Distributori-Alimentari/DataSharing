@@ -7,7 +7,7 @@ import pandas as pd
 import pyodbc
 
 from services.config import Config
-from .repositories import CocaColaTrackingRepository, SocioDataSharingRepository, SociRepository
+from .repositories import SocioDataSharingRepository, SociRepository
 
 
 class DBManager:
@@ -183,10 +183,10 @@ class DBManager:
             merged.loc[first_index, column_name] = column_value
         return merged
 
-    def _get_coca_cola_tracking_repository(self, tracking_config=None):
-        if self._coca_cola_tracking_repository is None:
-            self._coca_cola_tracking_repository = CocaColaTrackingRepository(self, tracking_config)
-        return self._coca_cola_tracking_repository
+    # def _get_coca_cola_tracking_repository(self, tracking_config=None):
+    #     if self._coca_cola_tracking_repository is None:
+    #         # self._coca_cola_tracking_repository = CocaColaTrackingRepository(self, tracking_config)
+    #     return self._coca_cola_tracking_repository
 
     def add_coca_cola_tracking_entry(self, values, tracking_config=None):
         entry_values = dict(values)

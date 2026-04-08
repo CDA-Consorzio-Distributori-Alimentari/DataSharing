@@ -7,14 +7,16 @@ from io import BytesIO
 from database import DBManager
 from .outputters import FTPManager, MailManager
 from .formatters import XMLManager, CSVManager, ExcelManager
-from .trackers import CocaColaTrackingManager
+from .trackers import DataSharingTrackingManager
 import pandas as pd  # Ensure pandas is imported
 import os
 from pathlib import Path
 import re
 import traceback
+from database.repositories.TxDatasharingSocioRepository import TxDatasharingSocioRepository
 
 class DataSharingOwnerManager:
+
     def __init__(self):
         self.config = Config()
 
@@ -25,6 +27,7 @@ class DataSharingOwnerManager:
         self._csv_manager = None
         self._excel_manager = None
         self._coca_cola_tracking_manager = None
+        self._data_sharing_tracking_manager = None
 
         # Logger condiviso e accesso al database.
         self.log = LogManager(self.config.log_file, self.config.log_level)
@@ -415,15 +418,15 @@ class DataSharingOwnerManager:
         return self._ftp_managers[ftp_key]
 
     @property
-    def coca_cola_tracking_manager(self):
-        if self._coca_cola_tracking_manager is None:
-            self._coca_cola_tracking_manager = CocaColaTrackingManager(
+    def data_sharing_tracking_manager(self):
+        if self._data_sharing_tracking_manager is None:
+            self._data_sharing_tracking_manager = DataSharingTrackingManager(
                 self.db_manager,
                 getattr(self.config, "coca_cola_tracking", {}),
                 self.log,
                 self.config.debug,
             )
-        return self._coca_cola_tracking_manager
+        return self._data_sharing_tracking_manager
 
     @property
     def mail_manager(self):
@@ -450,163 +453,139 @@ class DataSharingOwnerManager:
             self._excel_manager = ExcelManager()
         return self._excel_manager
 
-    # def process_data(self, owner, mode, query, output_file):
-        # # Fetch data from the database
-        # data = self.db_manager.fetch_all(query)
-
-        # # Generate the file based on the mode
-        # if mode == 'xml':
-        #     xml_content = self.xml_manager.create_xml('Root', {f'Row{i}': str(row) for i, row in enumerate(data)})
-        #     self.xml_manager.save_xml(output_file, xml_content)
-        # elif mode == 'csv':
-        #     self.csv_manager.write_csv(output_file, data)
-        # elif mode == 'excel':
-        #     self.excel_manager.create_workbook(output_file)
-        #     self.excel_manager.write_to_sheet(output_file, 'Sheet1', data)
-        # else:
-        #     self.log("Unsupported mode")
-        #     return
-
-        # # Send the file via FTP
-        # self.ftp_manager.upload_file(output_file, f"/remote/path/{output_file}")
-
-        # # Send the file via email
-        # subject = f"Data Sharing for {owner}"
-        # body = f"Please find attached the data file for {owner}."
-        # self.mail_manager.send_mail("recipient@example.com", subject, body)
-
-        # # Log the operation
-        # self.log(f"Processed data for {owner} in {mode} mode and sent via FTP and email.")
-
-    def process_data(self, socio, periodo, config_ds :Option, send_summary_mail=True): 
-        # Il risultato ritorna sempre in forma strutturata, così il metodo
-        # può essere riusato sia da CLI sia da una futura API.
-        self.log.info(f"Avvio elaborazione per socio {socio}, periodo {periodo}, data sharing {config_ds.code}.")
+    def process_data(self, socio, periodo, config_ds: Option, send_summary_mail=True):
+        from datetime import datetime
+        tx_repo = TxDatasharingSocioRepository(self.db_manager)
+        now = datetime.now()
+        host = os.getenv("COMPUTERNAME", "")
+        user = os.getenv("USERNAME", "")
+        # 1. Inserimento stato INS appena inizia la lavorazione
+        tx_repo.add_entry({
+            "cod_socio": socio,
+            "cod_datasharing": config_ds.code,
+            "num_periodo": periodo,
+            "tms_invio": now,
+            "nom_file": "",  # Il nome file viene aggiornato in seguito quando è disponibile"",
+            "cod_stato": "INS",
+            "des_errore": None,
+            "tms_update": now,
+            "nom_utente_operazione": user,
+            "nom_host_operazione": host,
+        })
         socio_data = self.verify_socio(socio, config_ds.code)
         tracking_session = None
-        if self.coca_cola_tracking_manager.supports(config_ds):
-            tracking_session = self.coca_cola_tracking_manager.start_session(socio, periodo, config_ds, socio_data)
+        if self.data_sharing_tracking_manager.supports(config_ds):
+            tracking_session = self.data_sharing_tracking_manager.start_session(socio, periodo, config_ds, socio_data)
 
-        # 1. Carico e preparo la query SQL da eseguire.
+        # 2. Carico e preparo la query SQL da eseguire.
         query, error_result = self._load_query_text(socio, periodo, config_ds)
         if error_result:
+            tx_repo.update_status(
+                cod_socio=socio,
+                cod_datasharing=config_ds.code,
+                num_periodo=periodo,
+                tms_invio=now,
+                cod_stato="ERR",
+                des_errore=error_result.get("message")
+            )
             if tracking_session is not None:
-                self.coca_cola_tracking_manager.append(tracking_session, "ERRORE LETTURA QUERY")
-                self.coca_cola_tracking_manager.persist(tracking_session)
+                self.data_sharing_tracking_manager.append(tracking_session, "ERRORE LETTURA QUERY")
+                self.data_sharing_tracking_manager.persist(tracking_session)
             return self._finalize_result(socio, periodo, config_ds, socio_data, error_result, send_summary_mail=send_summary_mail)
 
-        # 2. Eseguo la query e ottengo il dataset da esportare.
-        database_results = self.db_manager.fetch_all(query)
-
-        # Log tecnico per diagnosticare dimensione e forma del risultato.
-        self.log.info(f"Raw database results fetched for socio {socio}: {database_results.shape}")
-
-        # 3. Genero il contenuto e preparo lo stream per salvataggio e delivery.
+        # 3. Eseguo la query e ottengo il dataset da esportare.
         try:
-            if tracking_session is not None:
-                self.coca_cola_tracking_manager.append(tracking_session, "Scrittura file XML")
-            output_file, delivery_stream = self._create_output_artifact(socio, periodo, config_ds, database_results, socio_data)
-            if tracking_session is not None:
-                self.coca_cola_tracking_manager.append(tracking_session, "SCRITTURA FILE XML OK")
-        except FileNotFoundError as exc:
-            message = str(exc)
-            self.log.error(message)
-            if tracking_session is not None:
-                self.coca_cola_tracking_manager.append(tracking_session, "SCRITTURA FILE XML KO")
-                self.coca_cola_tracking_manager.persist(tracking_session)
-            return self._finalize_result(
-                socio,
-                periodo,
-                config_ds,
-                socio_data,
-                self._build_result(False, message, error_details=message),
-                send_summary_mail=send_summary_mail,
+            database_results = self.db_manager.fetch_all(query)
+        except Exception as exc:
+            tx_repo.update_status(
+                cod_socio=socio,
+                cod_datasharing=config_ds.code,
+                num_periodo=periodo,
+                tms_invio=now,
+                cod_stato="ERR",
+                des_errore=str(exc)
             )
-        except ValueError as exc:
-            message = str(exc)
-            self.log.error(message)
-            if tracking_session is not None:
-                self.coca_cola_tracking_manager.append(tracking_session, "SCRITTURA FILE XML KO")
-                self.coca_cola_tracking_manager.persist(tracking_session)
-            return self._finalize_result(
-                socio,
-                periodo,
-                config_ds,
-                socio_data,
-                self._build_result(False, message, error_details=message),
-                send_summary_mail=send_summary_mail,
+            self.log.error(f"Errore esecuzione query: {exc}")
+            return self._finalize_result(socio, periodo, config_ds, socio_data, self._build_result(False, str(exc)), send_summary_mail=send_summary_mail)
+
+        # 4. Aggiorno stato RUN
+        tx_repo.update_status(
+            cod_socio=socio,
+            cod_datasharing=config_ds.code,
+            num_periodo=periodo,
+            tms_invio=now,
+            cod_stato="RUN",
+            des_errore=None,
+        )
+
+        # 5. Genero il contenuto e preparo lo stream per salvataggio e delivery.
+        try:
+            output_file, delivery_stream = self._create_output_artifact(socio, periodo, config_ds, database_results, socio_data)
+        except Exception as exc:
+            tx_repo.update_status(
+                cod_socio=socio,
+                cod_datasharing=config_ds.code,
+                num_periodo=periodo,
+                tms_invio=now,
+                cod_stato="ERR",
+                des_errore=str(exc)
+            )
+            self.log.error(f"Errore generazione artefatto: {exc}")
+            return self._finalize_result(socio, periodo, config_ds, socio_data, self._build_result(False, str(exc)), send_summary_mail=send_summary_mail)
+        tx_repo.update_nomefile(
+                cod_socio=socio,
+                cod_datasharing=config_ds.code,
+                num_periodo=periodo,
+                tms_invio=now,
+                nom_file=os.path.basename(output_file)
             )
 
-        # 4. Salvo il file in un punto unico, indipendente dal tipo output.
+        # 6. Salvo il file
         try:
             self._save_output_artifact(config_ds, output_file, delivery_stream)
         except Exception as exc:
-            message = f"Creazione stream completata ma salvataggio file fallito: {exc}"
-            error_details = traceback.format_exc()
-            self.log.error(message)
-            if tracking_session is not None:
-                self.coca_cola_tracking_manager.append(tracking_session, "SCRITTURA FILE XML KO")
-                self.coca_cola_tracking_manager.persist(tracking_session, output_file)
-            return self._finalize_result(
-                socio,
-                periodo,
-                config_ds,
-                socio_data,
-                self._build_result(False, message, error_details=error_details),
-                send_summary_mail=send_summary_mail,
+            tx_repo.update_status(
+                cod_socio=socio,
+                cod_datasharing=config_ds.code,
+                num_periodo=periodo,
+                tms_invio=now,
+                cod_stato="ERR",
+                des_errore=f"Salvataggio file fallito: {exc}",
             )
+            self.log.error(f"Errore salvataggio file: {exc}")
+            return self._finalize_result(socio, periodo, config_ds, socio_data, self._build_result(False, str(exc)), send_summary_mail=send_summary_mail)
 
-        # 5. Pubblico il file sul canale di consegna configurato.
+        # 7. Pubblico il file
         try:
-            if tracking_session is not None and config_ds.delivery_method == DeliveryMethod.FTP:
-                self.coca_cola_tracking_manager.append(tracking_session, "INVIO FILE XML...")
             delivery_details = self._publish_output(config_ds, output_file, delivery_stream)
-            published = bool(delivery_details.get("published"))
-            if tracking_session is not None and config_ds.delivery_method == DeliveryMethod.FTP and published:
-                self.coca_cola_tracking_manager.append(tracking_session, "INVIO FILE XML OK")
-            if tracking_session is not None and config_ds.delivery_method == DeliveryMethod.FTP and not published:
-                self.coca_cola_tracking_manager.append(tracking_session, "INVIO FILE XML SKIPPED DEBUG")
-        except Exception as exc:
-            message = f"File generato ma pubblicazione fallita: {exc}"
-            error_details = traceback.format_exc()
-            self.log.error(message)
-            if tracking_session is not None:
-                self.coca_cola_tracking_manager.append(tracking_session, "INVIO FILE XML KO")
-                self.coca_cola_tracking_manager.persist(tracking_session, output_file)
-            error_result = self._build_result(False, message, output_file, error_details=error_details)
-            error_result["delivery"] = {
-                "published": False,
-                "recipients": [],
-                "files": [os.path.basename(output_file)],
-            }
-            return self._finalize_result(
-                socio,
-                periodo,
-                config_ds,
-                socio_data,
-                error_result,
-                send_summary_mail=send_summary_mail,
+            stato_finale = "OK " if delivery_details.get("published") else ("DEG" if self.config.debug else "WAR")
+            tx_repo.update_status(
+                cod_socio=socio,
+                cod_datasharing=config_ds.code,
+                num_periodo=periodo,
+                tms_invio=now,
+                cod_stato=stato_finale,
+                des_errore=None
             )
+        except Exception as exc:
+            tx_repo.update_status(
+                cod_socio=socio,
+                cod_datasharing=config_ds.code,
+                num_periodo=periodo,
+                tms_invio=now,
+                cod_stato="ERR",
+                des_errore=f"Pubblicazione fallita: {exc}"
+                )
+            self.log.error(f"Errore pubblicazione file: {exc}")
+            return self._finalize_result(socio, periodo, config_ds, socio_data, self._build_result(False, str(exc)), send_summary_mail=send_summary_mail)
 
-        if tracking_session is not None:
-            self.coca_cola_tracking_manager.persist(tracking_session, output_file)
-
-        # Chiusura del flusso con log sintetico dell'esito.
+        # 8. Chiusura del flusso con log sintetico dell'esito.
         message = f"Processed data for socio {socio} in {config_ds.file_type} mode. File: {output_file}"
         self.log.info(message)
-
         self.log.info("Elaborazione completata.")
-
         success_result = self._build_result(True, message, output_file)
         success_result["delivery"] = delivery_details
-        return self._finalize_result(
-            socio,
-            periodo,
-            config_ds,
-            socio_data,
-            success_result,
-            send_summary_mail=send_summary_mail,
-        )
+        return self._finalize_result(socio, periodo, config_ds, socio_data, success_result, send_summary_mail=send_summary_mail)
         
     def verify_socio(self, socio, datasharing_code=None):
         return self.db_manager.verify_socio(socio, datasharing_code)

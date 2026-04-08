@@ -1,1 +1,1 @@
-from .coca_cola_tracking_manager import CocaColaTrackingManager, CocaColaTrackingSession
+from .datasharing_tracking_manager import DataSharingTrackingManager, DataSharingTrackingSession

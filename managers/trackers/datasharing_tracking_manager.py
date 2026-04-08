@@ -5,7 +5,7 @@ import re
 
 
 @dataclass
-class CocaColaTrackingSession:
+class DataSharingTrackingSession:
     socio: str
     periodo: str
     data_sharing_code: str
@@ -13,8 +13,8 @@ class CocaColaTrackingSession:
     log_entries: list[str] = field(default_factory=list)
 
 
-class CocaColaTrackingManager:
-    DEFAULT_TRACKED_CODES = {"CC001", "CC002"}
+class DataSharingTrackingManager:
+    #DEFAULT_TRACKED_CODES = {"CC001", "CC002"}
 
     def __init__(self, db_manager, tracking_config=None, log_manager=None, debug_enabled=False):
         self.db_manager = db_manager
@@ -28,13 +28,13 @@ class CocaColaTrackingManager:
 
         tracked_codes = {
             str(code).strip()
-            for code in self.tracking_config.get("tracked_codes", self.DEFAULT_TRACKED_CODES)
+            for code in self.tracking_config.get("tracked_codes", set())
             if str(code).strip()
         }
         return getattr(config_ds, "code", None) in tracked_codes
 
     def start_session(self, socio, periodo, config_ds, socio_data):
-        session = CocaColaTrackingSession(
+        session = DataSharingTrackingSession(
             socio=str(socio).strip(),
             periodo=str(periodo).strip(),
             data_sharing_code=getattr(config_ds, "code", ""),
