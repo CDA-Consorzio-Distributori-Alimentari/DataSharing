@@ -59,7 +59,7 @@ def parse_log(log_path):
             # FTP completato
             m = RE_FTP.search(line)
             if m and current:
-                current["cod_stato"] = "FTP"
+                current["cod_stato"] = "OK"
                 continue
             # Errore
             if RE_ERRORE.search(line) and current:

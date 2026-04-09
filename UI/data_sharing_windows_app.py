@@ -203,7 +203,12 @@ class DataSharingWindowsApp:
         action_frame = ttk.Frame(container, padding=(0, 12, 0, 12))
         action_frame.grid(row=2, column=0, sticky="ew")
 
-        self.run_button = ttk.Button(action_frame, text="Avvia elaborazione", command=self._run_export)
+        self.run_button = ttk.Button(
+            action_frame, 
+            text="Avvia elaborazione", 
+            command=self._run_export
+        )
+        
         self.run_button.pack(side="left")
         ToolTip(self.run_button, "Si abilita solo quando data sharing, periodo e almeno un socio sono validi.")
 
@@ -212,7 +217,7 @@ class DataSharingWindowsApp:
             text="Gestione abilitazioni",
             command=self._open_socio_datasharing_management,
         )
-        self.manage_relations_button = ttk.Button(
+        self.tabella_logging_button = ttk.Button(
             action_frame,
             text="Visualizza Tabella Logging",
             command=self._open_tabella_logging_window,
@@ -220,10 +225,17 @@ class DataSharingWindowsApp:
 
 
         self.manage_relations_button.pack(side="left", padx=(8, 0))
+        self.tabella_logging_button.pack(side="left", padx=(8, 0))
+        
         ToolTip(
             self.manage_relations_button,
             "Apre la finestra di gestione delle relazioni socio-data sharing per attivare o disattivare le abilitazioni.",
         )
+        ToolTip(
+            self.tabella_logging_button,
+            "Apre la finestra della tabella di logging per visualizzare i dettagli delle elaborazioni.",
+        )
+
 
         status_frame = ttk.LabelFrame(container, text="Stato", padding=12)
         status_frame.grid(row=3, column=0, sticky="ew")
@@ -673,7 +685,7 @@ class DataSharingWindowsApp:
             return
 
         option = self.selected_option
-        self._last_run_started_at = datetime.now()
+        self._last_run_started_at = datetime.datetime.now()
         self._set_running_state(True)
         self.progress_var.set(0)
         self.progress_text_var.set("0%")
@@ -850,9 +862,10 @@ class DataSharingWindowsApp:
         messagebox.showerror("DataSharing", str(exc), parent=self.root)
 
     def run(self):
-        self.root.mainloop()
-
-
+        try:    
+            self.root.mainloop()
+        except Exception as exc:
+              messagebox.showerror("DataSharing", str(exc), parent=self.root)
 
 
 
