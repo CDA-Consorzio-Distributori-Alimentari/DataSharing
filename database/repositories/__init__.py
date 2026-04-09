@@ -1,3 +1,4 @@
 from .base_repository import BaseRepository
 from .socio_datasharing_repository import SocioDataSharingRepository
 from .soci_repository import SociRepository
+from .tabella_logging_repository import TabellaLoggingRepository

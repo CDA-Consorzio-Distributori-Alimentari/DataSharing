@@ -10,8 +10,8 @@ except ImportError:
     from managers.log_manager import LogManager
 
 
-class AuthorizationError(PermissionError):
-    pass
+
+from .authorization_error import AuthorizationError
 
 
 def show_authorization_error_and_exit(message, exit_code=1):
@@ -29,23 +29,9 @@ def show_authorization_error_and_exit(message, exit_code=1):
         raise SystemExit(exit_code)
 
 
-# Struttura Win32 che rappresenta una coppia SID + attributi letta dal token.
-# Serve per scorrere l'elenco gruppi presente nella sessione Windows corrente.
-class _SID_AND_ATTRIBUTES(ctypes.Structure):
-    _fields_ = [
-        ("Sid", wintypes.LPVOID),
-        ("Attributes", wintypes.DWORD),
-    ]
 
-
-# Header della struttura TOKEN_GROUPS restituita da GetTokenInformation.
-# Il campo Groups e' a lunghezza variabile: qui definiamo il minimo e poi
-# rileggiamo il buffer completo con il numero effettivo di gruppi.
-class _TOKEN_GROUPS(ctypes.Structure):
-    _fields_ = [
-        ("GroupCount", wintypes.DWORD),
-        ("Groups", _SID_AND_ATTRIBUTES * 1),
-    ]
+# Import Win32 struct definitions
+from .ad_structs import _SID_AND_ATTRIBUTES, _TOKEN_GROUPS
 
 
 class ActiveDirectoryAuthorizationManager:
@@ -495,8 +481,3 @@ if ($null -ne $groupResult) {{
         )
 
 
-if __name__ == "__main__":
-    try:
-        ActiveDirectoryAuthorizationManager().ensure_current_user_is_authorized()
-    except AuthorizationError as exc:
-        show_authorization_error_and_exit(str(exc))

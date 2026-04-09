@@ -1,3 +1,6 @@
+import pandas as pd
+
+
 class BaseRepository:
     ID_FIELD = None
 
@@ -6,6 +9,9 @@ class BaseRepository:
         self.session_factory = self.db_manager._get_sqlalchemy_session_factory()
         self.model = self._map_model()
         self.column_names = list(self.model.__table__.columns.keys())
+    
+   
+
 
     def _map_model(self):
         raise NotImplementedError()
@@ -16,6 +22,22 @@ class BaseRepository:
             raise ValueError("ID field non configurato per questo repository.")
         return resolved_id_field
 
+    def get_dataframe(self, filters=None, order_by=None):
+            """
+            Restituisce un DataFrame pandas con i risultati della query filtrata.
+            """
+            with self.session_factory() as session:
+                query = self._build_filtered_query(session, filters=filters, order_by=order_by)
+                results = query.all()
+                if not results:
+                    return pd.DataFrame([])
+                # Converti ogni oggetto in dict
+                data = [
+                    {col: getattr(row, col, None) for col in self.column_names}
+                    for row in results
+                ]
+                return pd.DataFrame(data)
+    
     def _build_filtered_query(self, session, filters=None, order_by=None):
         query = session.query(self.model)
         for field_name, field_value in (filters or {}).items():

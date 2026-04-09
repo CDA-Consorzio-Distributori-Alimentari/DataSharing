@@ -98,6 +98,19 @@ class DataSharingRuntime:
 
     def get_enabled_soci(self, option: Option):
         return self.dso_manager.db_manager.get_enabled_soci_for_datasharing(option.code)
+    
+   
+    def get_logging_dataframe(self, cod_socio=None, cod_datasharing=None, num_periodo=None, cod_stato=None, tms_invio=None):
+        """Restituisce un DataFrame pandas filtrato per i parametri forniti.
+        """
+        return self.dso_manager.db_manager.get_logging_dataframe(
+            cod_socio=cod_socio,
+            cod_datasharing=cod_datasharing,
+            num_periodo=num_periodo,
+            cod_stato=cod_stato,
+            tms_invio=tms_invio,
+        )
+
 
     def get_socio_datasharing_relations(self, socio=None, datasharing_code=None, only_enabled=False, only_current_tool=False):
         return self.dso_manager.db_manager.get_socio_datasharing_relations(

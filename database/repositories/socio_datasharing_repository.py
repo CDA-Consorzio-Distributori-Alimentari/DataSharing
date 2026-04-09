@@ -1,3 +1,5 @@
+from warnings import filters
+
 import pandas as pd
 from datetime import datetime
 
@@ -35,6 +37,8 @@ class SocioDataSharingRepository(BaseRepository):
 
     def _selectable_columns(self):
         return [getattr(self.model, column_name) for column_name in self.column_names]
+
+    
 
     def get_relations_dataframe(self, socio_code=None, datasharing_code=None, only_enabled=False, only_current_tool=False):
         filters = []

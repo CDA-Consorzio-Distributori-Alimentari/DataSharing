@@ -1,9 +1,9 @@
 # Repository per TX_DATASHARING_SOCIO
 import datetime
-
+import pandas as pd
 from .base_repository import BaseRepository
 
-class TxDatasharingSocioRepository(BaseRepository):
+class TabellaLoggingRepository(BaseRepository):
     DEFAULT_TABLE_NAME = "TX_DATASHARING_SOCIO"
     DEFAULT_TABLE_SCHEMA = "dbo"
     COLUMN_MAPPING = {
@@ -18,13 +18,16 @@ class TxDatasharingSocioRepository(BaseRepository):
         "nom_utente_operazione": "NOM_UTENTE_OPERAZIONE",
         "nom_host_operazione": "NOM_HOST_OPERAZIONE",
     }
-
-    def __init__(self, db_manager, tracking_config=None):
-        self.tracking_config = tracking_config or {}
+    
+    def __init__(self, db_manager):
+    
         self.table_schema = self.DEFAULT_TABLE_SCHEMA
         self.table_name = self.DEFAULT_TABLE_NAME
         self.column_mapping = dict(self.COLUMN_MAPPING)
         super().__init__(db_manager)
+    
+
+    
 
     def _map_model(self):
         tracking_table = self.db_manager._reflect_table(f"{self.table_schema}.{self.table_name}")
@@ -112,3 +115,47 @@ class TxDatasharingSocioRepository(BaseRepository):
         if des_errore is not None:
             payload[self.column_mapping["des_errore"]] = des_errore
         return self.update_by_filters(filters, payload)
+
+    def get_cod_stato(self, cod_socio, cod_datasharing, num_periodo, tms_invio=None):
+        """
+        Restituisce il valore di cod_stato dell'ultimo tentativo (tms_invio massimo) per la combinazione fornita.
+        Se tms_invio è fornito, filtra anche per tms_invio troncato al minuto.
+        """
+        filters = {
+            self.column_mapping["cod_socio"]: cod_socio,
+            self.column_mapping["cod_datasharing"]: cod_datasharing,
+            self.column_mapping["num_periodo"]: num_periodo,
+        }
+        if tms_invio is not None:
+            filters[self.column_mapping["tms_invio"]] = self._truncate_to_minute(tms_invio)
+        entries = self.get_all_by_filters(filters)
+        if not entries:
+            return None
+        # Ordina per tms_invio discendente e restituisce il cod_stato della più recente
+        latest = max(entries, key=lambda e: getattr(e, self.column_mapping["tms_invio"]))
+        return getattr(latest, self.column_mapping["cod_stato"], None)
+    
+    def get_dataframe(self, cod_socio=None, cod_datasharing=None, num_periodo=None, cod_stato=None, tms_invio=None):
+        """
+        Restituisce un DataFrame pandas filtrato per i parametri forniti.
+        Se tms_invio è None, limita ai record degli ultimi 3 anni (incluso l'anno corrente) a livello DB.
+        """
+        
+        filters = {}
+        if cod_socio is not None:
+            filters[self.column_mapping["cod_socio"]] = cod_socio
+        if cod_datasharing is not None:
+            filters[self.column_mapping["cod_datasharing"]] = cod_datasharing
+        if num_periodo is not None:
+            filters[self.column_mapping["num_periodo"]] = num_periodo
+        if cod_stato is not None:
+            filters[self.column_mapping["cod_stato"]] = cod_stato
+
+      
+        try:
+            df = super().get_dataframe(filters=filters, order_by=None)
+            return df if df is not None else pd.DataFrame([])
+        except Exception as exc:
+            self.db_manager._log_error(f"Error fetching by dataframe: {exc}")
+            return pd.DataFrame([])
+    

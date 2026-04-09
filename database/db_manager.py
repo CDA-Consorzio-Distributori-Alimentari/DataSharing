@@ -6,8 +6,10 @@ import os
 import pandas as pd
 import pyodbc
 
+
+
 from services.config import Config
-from .repositories import SocioDataSharingRepository, SociRepository
+from .repositories import SocioDataSharingRepository, SociRepository, TabellaLoggingRepository
 
 
 class DBManager:
@@ -21,6 +23,7 @@ class DBManager:
         self._soci_repository = None
         self._socio_datasharing_repository = None
         self._coca_cola_tracking_repository = None
+        self._tabella_logging_windows = None
 
     @staticmethod
     def _get_logged_user_for_session_context():
@@ -171,6 +174,12 @@ class DBManager:
         if self._socio_datasharing_repository is None:
             self._socio_datasharing_repository = SocioDataSharingRepository(self)
         return self._socio_datasharing_repository
+    
+    def _get_tabella_logging_windows(self):
+        if self._tabella_logging_windows is None:
+            self._tabella_logging_windows = TabellaLoggingRepository(self)
+        return self._tabella_logging_windows
+
 
     @staticmethod
     def _merge_socio_with_relation(socio_data, relation_row):
@@ -261,6 +270,22 @@ class DBManager:
         except Exception as exc:
             self._log_error(f"Error verifying socio {socio}: {exc}")
             return pd.DataFrame()
+        
+    def get_logging_dataframe(self, cod_socio=None, cod_datasharing=None, num_periodo=None, cod_stato=None, tms_invio=None):
+        """
+        Restituisce un DataFrame pandas con i log filtrati per i parametri forniti tramite TabellaLoggingWindows.
+        """
+        try:
+            return self._get_tabella_logging_windows().get_dataframe(
+                cod_socio=cod_socio,
+                cod_datasharing=cod_datasharing,
+                num_periodo=num_periodo,
+                cod_stato=cod_stato,
+                tms_invio=tms_invio
+            )
+        except Exception as exc:
+            self._log_error(f"Error fetching logging data with filters: {exc}")
+            return pd.DataFrame([])
 
     def get_socio_datasharing_relations(self, socio=None, datasharing_code=None, only_enabled=False, only_current_tool=False):
         try:

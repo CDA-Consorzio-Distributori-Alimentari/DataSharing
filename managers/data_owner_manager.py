@@ -1,3 +1,5 @@
+from exceptions.blocking_process_error import BlockingProcessError
+from exceptions.data_sharing_warning import DataSharingWarning
 from services.config import Config
 from services.data_sharing_config import DeliveryMethod, FileType, Option
 from .log_manager import LogManager
@@ -13,7 +15,7 @@ import os
 from pathlib import Path
 import re
 import traceback
-from database.repositories.TxDatasharingSocioRepository import TxDatasharingSocioRepository
+from database.repositories.tabella_logging_repository import TabellaLoggingRepository
 
 class DataSharingOwnerManager:
 
@@ -455,137 +457,158 @@ class DataSharingOwnerManager:
 
     def process_data(self, socio, periodo, config_ds: Option, send_summary_mail=True):
         from datetime import datetime
-        tx_repo = TxDatasharingSocioRepository(self.db_manager)
+        tx_repo = TabellaLoggingRepository(self.db_manager)
         now = datetime.now()
         host = os.getenv("COMPUTERNAME", "")
         user = os.getenv("USERNAME", "")
-        # 1. Inserimento stato INS appena inizia la lavorazione
-        tx_repo.add_entry({
-            "cod_socio": socio,
-            "cod_datasharing": config_ds.code,
-            "num_periodo": periodo,
-            "tms_invio": now,
-            "nom_file": "",  # Il nome file viene aggiornato in seguito quando è disponibile"",
-            "cod_stato": "INS",
-            "des_errore": None,
-            "tms_update": now,
-            "nom_utente_operazione": user,
-            "nom_host_operazione": host,
-        })
-        socio_data = self.verify_socio(socio, config_ds.code)
-        tracking_session = None
-        if self.data_sharing_tracking_manager.supports(config_ds):
-            tracking_session = self.data_sharing_tracking_manager.start_session(socio, periodo, config_ds, socio_data)
-
-        # 2. Carico e preparo la query SQL da eseguire.
-        query, error_result = self._load_query_text(socio, periodo, config_ds)
-        if error_result:
-            tx_repo.update_status(
-                cod_socio=socio,
-                cod_datasharing=config_ds.code,
-                num_periodo=periodo,
-                tms_invio=now,
-                cod_stato="ERR",
-                des_errore=error_result.get("message")
-            )
-            if tracking_session is not None:
-                self.data_sharing_tracking_manager.append(tracking_session, "ERRORE LETTURA QUERY")
-                self.data_sharing_tracking_manager.persist(tracking_session)
-            return self._finalize_result(socio, periodo, config_ds, socio_data, error_result, send_summary_mail=send_summary_mail)
-
-        # 3. Eseguo la query e ottengo il dataset da esportare.
         try:
-            database_results = self.db_manager.fetch_all(query)
-        except Exception as exc:
-            tx_repo.update_status(
-                cod_socio=socio,
-                cod_datasharing=config_ds.code,
-                num_periodo=periodo,
-                tms_invio=now,
-                cod_stato="ERR",
-                des_errore=str(exc)
-            )
-            self.log.error(f"Errore esecuzione query: {exc}")
-            return self._finalize_result(socio, periodo, config_ds, socio_data, self._build_result(False, str(exc)), send_summary_mail=send_summary_mail)
+            # 1. Inserimento stato INS appena inizia la lavorazione
+            tx_repo.add_entry({
+                "cod_socio": socio,
+                "cod_datasharing": config_ds.code,
+                "num_periodo": periodo,
+                "tms_invio": now,
+                "nom_file": "",  # Il nome file viene aggiornato in seguito quando è disponibile"",
+                "cod_stato": "INS",
+                "des_errore": None,
+                "tms_update": now,
+                "nom_utente_operazione": user,
+                "nom_host_operazione": host,
+            })
 
-        # 4. Aggiorno stato RUN
-        tx_repo.update_status(
-            cod_socio=socio,
-            cod_datasharing=config_ds.code,
-            num_periodo=periodo,
-            tms_invio=now,
-            cod_stato="RUN",
-            des_errore=None,
-        )
-
-        # 5. Genero il contenuto e preparo lo stream per salvataggio e delivery.
-        try:
-            output_file, delivery_stream = self._create_output_artifact(socio, periodo, config_ds, database_results, socio_data)
-        except Exception as exc:
-            tx_repo.update_status(
-                cod_socio=socio,
-                cod_datasharing=config_ds.code,
-                num_periodo=periodo,
-                tms_invio=now,
-                cod_stato="ERR",
-                des_errore=str(exc)
-            )
-            self.log.error(f"Errore generazione artefatto: {exc}")
-            return self._finalize_result(socio, periodo, config_ds, socio_data, self._build_result(False, str(exc)), send_summary_mail=send_summary_mail)
-        tx_repo.update_nomefile(
-                cod_socio=socio,
-                cod_datasharing=config_ds.code,
-                num_periodo=periodo,
-                tms_invio=now,
-                nom_file=os.path.basename(output_file)
-            )
-
-        # 6. Salvo il file
-        try:
-            self._save_output_artifact(config_ds, output_file, delivery_stream)
-        except Exception as exc:
-            tx_repo.update_status(
-                cod_socio=socio,
-                cod_datasharing=config_ds.code,
-                num_periodo=periodo,
-                tms_invio=now,
-                cod_stato="ERR",
-                des_errore=f"Salvataggio file fallito: {exc}",
-            )
-            self.log.error(f"Errore salvataggio file: {exc}")
-            return self._finalize_result(socio, periodo, config_ds, socio_data, self._build_result(False, str(exc)), send_summary_mail=send_summary_mail)
-
-        # 7. Pubblico il file
-        try:
-            delivery_details = self._publish_output(config_ds, output_file, delivery_stream)
-            stato_finale = "OK " if delivery_details.get("published") else ("DEG" if self.config.debug else "WAR")
-            tx_repo.update_status(
-                cod_socio=socio,
-                cod_datasharing=config_ds.code,
-                num_periodo=periodo,
-                tms_invio=now,
-                cod_stato=stato_finale,
-                des_errore=None
-            )
-        except Exception as exc:
-            tx_repo.update_status(
-                cod_socio=socio,
-                cod_datasharing=config_ds.code,
-                num_periodo=periodo,
-                tms_invio=now,
-                cod_stato="ERR",
-                des_errore=f"Pubblicazione fallita: {exc}"
+            # 2. Verifica socio autorizzato
+            try:
+                socio_data = self.verify_socio(socio, config_ds.code)
+            except Exception as auth_exc:
+                tx_repo.update_status(
+                    cod_socio=socio,
+                    cod_datasharing=config_ds.code,
+                    num_periodo=periodo,
+                    tms_invio=now,
+                    cod_stato="ERR",
+                    des_errore=str(auth_exc)
                 )
-            self.log.error(f"Errore pubblicazione file: {exc}")
-            return self._finalize_result(socio, periodo, config_ds, socio_data, self._build_result(False, str(exc)), send_summary_mail=send_summary_mail)
+                self.log.error(f"Errore autorizzazione socio: {auth_exc}")
+                raise BlockingProcessError(f"Utente non abilitato o autorizzazione negata: {auth_exc}")
 
-        # 8. Chiusura del flusso con log sintetico dell'esito.
-        message = f"Processed data for socio {socio} in {config_ds.file_type} mode. File: {output_file}"
-        self.log.info(message)
-        self.log.info("Elaborazione completata.")
-        success_result = self._build_result(True, message, output_file)
-        success_result["delivery"] = delivery_details
-        return self._finalize_result(socio, periodo, config_ds, socio_data, success_result, send_summary_mail=send_summary_mail)
+            tracking_session = None
+            if self.data_sharing_tracking_manager.supports(config_ds):
+                tracking_session = self.data_sharing_tracking_manager.start_session(socio, periodo, config_ds, socio_data)
+
+            # 3. Carico e preparo la query SQL da eseguire.
+            query, error_result = self._load_query_text(socio, periodo, config_ds)
+            if error_result:
+                tx_repo.update_status(
+                    cod_socio=socio,
+                    cod_datasharing=config_ds.code,
+                    num_periodo=periodo,
+                    tms_invio=now,
+                    cod_stato="ERR",
+                    des_errore=error_result.get("message")
+                )
+                if tracking_session is not None:
+                    self.data_sharing_tracking_manager.append(tracking_session, "ERRORE LETTURA QUERY")
+                    self.data_sharing_tracking_manager.persist(tracking_session)
+                raise BlockingProcessError(f"Errore caricamento query: {error_result.get('message')}")
+
+            # 4. Eseguo la query e ottengo il dataset da esportare.
+            try:
+                database_results = self.db_manager.fetch_all(query)
+            except Exception as db_exc:
+                tx_repo.update_status(
+                    cod_socio=socio,
+                    cod_datasharing=config_ds.code,
+                    num_periodo=periodo,
+                    tms_invio=now,
+                    cod_stato="ERR",
+                    des_errore=str(db_exc)
+                )
+                self.log.error(f"Errore esecuzione query: {db_exc}")
+                raise BlockingProcessError(f"Errore accesso DB o query: {db_exc}")
+
+            # 5. Aggiorno stato RUN
+            tx_repo.update_status(
+                cod_socio=socio,
+                cod_datasharing=config_ds.code,
+                num_periodo=periodo,
+                tms_invio=now,
+                cod_stato="RUN",
+                des_errore=None,
+            )
+
+            # 6. Genero il contenuto e preparo lo stream per salvataggio e delivery.
+            try:
+                output_file, delivery_stream = self._create_output_artifact(socio, periodo, config_ds, database_results, socio_data)
+            except Exception as exc:
+                tx_repo.update_status(
+                    cod_socio=socio,
+                    cod_datasharing=config_ds.code,
+                    num_periodo=periodo,
+                    tms_invio=now,
+                    cod_stato="ERR",
+                    des_errore=str(exc)
+                )
+                self.log.error(f"Errore generazione artefatto: {exc}")
+                raise DataSharingWarning(f"Errore generazione artefatto: {exc}")
+            tx_repo.update_nomefile(
+                    cod_socio=socio,
+                    cod_datasharing=config_ds.code,
+                    num_periodo=periodo,
+                    tms_invio=now,
+                    nom_file=os.path.basename(output_file)
+                )
+
+            # 7. Salvo il file
+            try:
+                self._save_output_artifact(config_ds, output_file, delivery_stream)
+            except Exception as exc:
+                tx_repo.update_status(
+                    cod_socio=socio,
+                    cod_datasharing=config_ds.code,
+                    num_periodo=periodo,
+                    tms_invio=now,
+                    cod_stato="ERR",
+                    des_errore=f"Salvataggio file fallito: {exc}",
+                )
+                self.log.error(f"Errore salvataggio file: {exc}")
+                raise DataSharingWarning(f"Salvataggio file fallito: {exc}")
+
+            # 8. Pubblico il file
+            try:
+                delivery_details = self._publish_output(config_ds, output_file, delivery_stream)
+                stato_finale = "OK " if delivery_details.get("published") else ("DEG" if self.config.debug else "WAR")
+                tx_repo.update_status(
+                    cod_socio=socio,
+                    cod_datasharing=config_ds.code,
+                    num_periodo=periodo,
+                    tms_invio=now,
+                    cod_stato=stato_finale,
+                    des_errore=None
+                )
+            except Exception as exc:
+                tx_repo.update_status(
+                    cod_socio=socio,
+                    cod_datasharing=config_ds.code,
+                    num_periodo=periodo,
+                    tms_invio=now,
+                    cod_stato="ERR",
+                    des_errore=f"Pubblicazione fallita: {exc}"
+                    )
+                self.log.error(f"Errore pubblicazione file: {exc}")
+                raise DataSharingWarning(f"Pubblicazione fallita: {exc}")
+
+            # 9. Chiusura del flusso con log sintetico dell'esito.
+            message = f"Processed data for socio {socio} in {config_ds.file_type} mode. File: {output_file}"
+            self.log.info(message)
+            self.log.info("Elaborazione completata.")
+            success_result = self._build_result(True, message, output_file)
+            success_result["delivery"] = delivery_details
+            return self._finalize_result(socio, periodo, config_ds, socio_data, success_result, send_summary_mail=send_summary_mail)
+        except (BlockingProcessError, DataSharingWarning):
+            raise
+        except Exception as exc:
+            # Rilancia l'eccezione per la gestione lato GUI (messagebox)
+            raise
         
     def verify_socio(self, socio, datasharing_code=None):
         return self.db_manager.verify_socio(socio, datasharing_code)
