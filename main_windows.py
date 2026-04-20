@@ -40,10 +40,13 @@ def check_and_update_from_release():
                 release_dir_hardcoded = local_release
             else:
                 release_dir_hardcoded = r"\\192.168.105.200\DataSharing\release"
+            target_dir_hardcoded = current_dir
+            if not target_dir_hardcoded.endswith("\\"):
+                target_dir_hardcoded += "\\"
             updater_content = (
                 f"@echo off\r\nsetlocal\r\n"
                 f"set \"RELEASE_DIR={release_dir_hardcoded}\"\r\n"
-                f"set \"TARGET_DIR={current_dir}\"\r\n"
+                f"set \"TARGET_DIR={target_dir_hardcoded}\"\r\n"
                 "REM Copia i file aggiornati\r\nfor %%F in (datasharing.exe datasharing_windows.exe config.json config.template.json GUIDA_UTENTE_DATASHARING.md VERSION) do (\r\n    echo Copio \"%RELEASE_DIR%\\%%F\" su \"%TARGET_DIR%\\%%F\"\r\n    if exist \"%RELEASE_DIR%\\%%F\" copy /Y \"%RELEASE_DIR%\\%%F\" \"%TARGET_DIR%\\%%F\"\r\n)\r\n"
                 "REM Riavvia sempre datasharing_windows.exe\r\nif exist \"%TARGET_DIR%datasharing_windows.exe\" (\r\n    echo Avvio datasharing_windows.exe...\r\n    start \"\" \"%TARGET_DIR%datasharing_windows.exe\"\r\n) else (\r\n    echo ERRORE: %TARGET_DIR%datasharing_windows.exe non trovato!\r\n)\r\n"
                 "echo Operazione completata. Premi un tasto per chiudere.\r\npause >nul\r\nexit /b 0\r\n"
