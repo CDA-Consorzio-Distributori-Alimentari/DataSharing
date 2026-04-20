@@ -230,15 +230,11 @@ class ActiveDirectoryAuthorizationManager:
     def _is_group_present_in_token(self, required_group):
         # Primo controllo: membership vista dal token della sessione corrente.
         # E' rapido e riflette l'identita' con cui il processo e' stato avviato.
-        self.log.info(
-            f"Avvio controllo autorizzazione via token Windows per il gruppo richiesto {self.allowed_group}."
-        )
+        # ...existing code...
         current_user_groups = self._read_current_user_groups()
         normalized_groups = {self._normalize_group_name(group_name) for group_name in current_user_groups}
         is_authorized = required_group in normalized_groups
-        self.log.info(
-            f"Esito controllo via token Windows per il gruppo {self.allowed_group}: {'AUTORIZZATO' if is_authorized else 'NON AUTORIZZATO'}."
-        )
+        self.log.info('autorizzato' if is_authorized else 'non autorizzato')
         return is_authorized
 
     def _run_powershell_boolean_script(self, script_text, operation_label):

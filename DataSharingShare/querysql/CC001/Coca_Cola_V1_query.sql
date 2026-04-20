@@ -1,5 +1,5 @@
 SELECT
-    TC_Soci_Deposito.TC_Soci_CocaCola_Codice As WholesalerID,
+    TR_Soci_DataSharing.WholesalerID As WholesalerID,
     CASE WHEN TW_Vendite_20.TW_Vendite_Filiale='' THEN '00' ELSE TW_Vendite_20.TW_Vendite_Filiale END AS Filiale,
     --TW_Vendite_20.TI_Clienti_Codice AS Clienti_Codice,
     --TW_Vendite_20.TI_Clienti_Codice_Pdc AS Clienti_Codice_Pdc,
@@ -27,10 +27,9 @@ INNER JOIN TW_Clienti ON
     TW_Vendite_20.TC_Soci_Codice = TW_Clienti.TC_Soci_Codice AND
     TW_Vendite_20.TW_Clienti_Codice = TW_Clienti.TW_Clienti_Codice AND
     TW_Vendite_20.TW_vendite_pdc = TW_Clienti.TW_Clienti_Codice_PDC
-INNER JOIN TC_Soci_Deposito ON
-    TW_Vendite_20.TC_Soci_Polo = TC_Soci_Deposito.TC_Soci_Polo AND
-    TW_Vendite_20.TC_Soci_Codice = TC_Soci_Deposito.TC_Soci_Codice AND
-    CASE WHEN TW_Vendite_20.TW_Vendite_Filiale='' THEN '00' ELSE TW_Vendite_20.TW_Vendite_Filiale END = TC_Soci_Deposito.TC_Soci_Filiale
+INNER JOIN TR_Soci_DataSharing ON
+    TW_Vendite_20.TC_Soci_Codice = TR_Soci_DataSharing.TC_Soci_Codice 
+    AND DataSharing_Code = 'CC001'
 INNER JOIN TC_Articoli ON
     TW_Vendite_20.TC_Articoli_Codice = TC_Articoli.TC_Articoli_Codice
 INNER JOIN TC_Soci ON
@@ -54,13 +53,13 @@ LEFT JOIN (
 ) tc_coca_cola ON
     TW_Clienti.TC_Soci_Codice = TC_Coca_cola.TC_Soci_Codice AND
     TW_Vendite_20.TW_Vendite_Periodo = tc_coca_cola.tc_coca_cola_periodo AND
-    TC_Soci_Deposito.TC_Soci_CocaCola_Codice = TC_Coca_cola.TC_Soci_CocaCola_Codice
+    TR_Soci_DataSharing.WholesalerID = TC_Coca_cola.TC_Soci_CocaCola_Codice
 WHERE TC_Articoli.TC_Fornitori_Codice = 4802 
       AND TW_Vendite_20.TC_Soci_Codice = @socioelaborazione
       AND TW_Vendite_20.TW_Vendite_Periodo = @periodoelaborazione 
       AND TC_Articoli.TC_Categorie_Merceologiche_Codice < 14
 ORDER BY 
-    TC_Soci_Deposito.TC_Soci_CocaCola_Codice,
+    TR_Soci_DataSharing.WholesalerID,
     TW_Clienti.TC_Soci_Polo,
     TW_Clienti.TC_Soci_Codice,
     TW_Clienti.TW_Clienti_Codice,

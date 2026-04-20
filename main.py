@@ -63,7 +63,7 @@ class DataSharing:
         results = []
         send_summary_mail = len(periods) == 1
         for single_period in periods:
-            results.append(self.dso_manager.process_data(socio, single_period, config_ds, send_summary_mail=send_summary_mail))
+            results.append(self.dso_manager.main_process_data(socio, single_period, config_ds, send_summary_mail=send_summary_mail))
 
         if len(results) == 1:
             return results[0]
@@ -96,7 +96,7 @@ class DataSharing:
             socio_results = []
             for single_period in periods:
                 socio_results.append(
-                    self.dso_manager.process_data(
+                    self.dso_manager.main_process_data(
                         socio_item,
                         single_period,
                         config_ds,

@@ -35,19 +35,27 @@ class FTPManager:
         return str(remote_path.parent / ok_name)
 
     def upload_file(self, file_name, file_stream):
-        try:
-            self.log.info(f"Avvio upload FTP del file {file_name} verso host {self.host}.")
-            with FTP() as ftp:
-                ftp.connect(self.host, self.port or 21)
-                ftp.login(self.username, self.password)
-                if hasattr(file_stream, 'seek'):
-                    file_stream.seek(0)
-                ftp.storbinary(f'STOR {file_name}', file_stream)
-                if self.create_ok_file:
-                    ok_file_name = self._build_ok_file_name(file_name)
-                    ftp.storbinary(f'STOR {ok_file_name}', BytesIO(b""))
-                    self.log.info(f"Creato marker FTP {ok_file_name} dopo upload di {file_name}.")
-            self.log.info(f"Upload FTP completato per il file {file_name}.")
-        except Exception as exc:
-            self.log.error(f"Errore durante upload FTP del file {file_name}: {exc}")
-            raise
+        tentativi = 0
+        max_tentativi = 3
+        while tentativi < max_tentativi:
+            try:
+                self.log.info(f"Avvio upload FTP del file {file_name} verso host {self.host}. Tentativo {tentativi+1} di {max_tentativi}.")
+                with FTP() as ftp:
+                    ftp.connect(self.host, self.port or 21)
+                    ftp.login(self.username, self.password)
+                    if hasattr(file_stream, 'seek'):
+                        file_stream.seek(0)
+                    ftp.storbinary(f'STOR {file_name}', file_stream)
+                    if self.create_ok_file:
+                        ok_file_name = self._build_ok_file_name(file_name)
+                        ftp.storbinary(f'STOR {ok_file_name}', BytesIO(b""))
+                        self.log.info(f"Creato marker FTP {ok_file_name} dopo upload di {file_name}.")
+                self.log.info(f"Upload FTP completato per il file {file_name}.")
+                return
+            except Exception as exc:
+                tentativi += 1
+                if tentativi < max_tentativi:
+                    self.log.error(f"Errore durante upload FTP del file {file_name}: {exc}. Nuovo tentativo ({tentativi+1}/{max_tentativi})...")
+                else:
+                    self.log.error(f"Errore durante upload FTP del file {file_name}: {exc}.\nATTENZIONE: Dopo 3 tentativi consecutivi il login FTP non è riuscito. Verifica le credenziali o la raggiungibilità del server.")
+                    raise

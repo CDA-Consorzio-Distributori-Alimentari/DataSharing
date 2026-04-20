@@ -68,4 +68,4 @@ class DataSharingService:
                 "output_file": None,
             }
 
-        return self.dso_manager.process_data(socio, periodo, option)
+        return self.dso_manager.main_process_data(socio, periodo, option)

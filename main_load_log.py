@@ -46,6 +46,7 @@ def parse_log(log_path):
                     "cod_datasharing": m.group(3),
                     "tms_invio": tms_invio,
                     "nom_file": None,
+                    "nom_file_path": None,
                     "cod_stato": "OK",
                     "des_errore": None,
                 }
@@ -55,11 +56,12 @@ def parse_log(log_path):
             if m and current:
                 xml_path = m.group(1)
                 current["nom_file"] = os.path.basename(xml_path)
+                current["nom_file_path"] = xml_path
                 continue
             # FTP completato
             m = RE_FTP.search(line)
             if m and current:
-                current["cod_stato"] = "OK"
+                current["cod_stato"] = "RUN"
                 continue
             # Errore
             if RE_ERRORE.search(line) and current:
@@ -89,16 +91,39 @@ def main():
             entry["cod_stato"] = "OK"
         # Gestione nom_file obbligatorio
         nom_file = entry.get("nom_file")
+        nom_file_path = entry.get("nom_file_path")
         if not nom_file:
             entry["nom_file"] = ""
             entry["cod_stato"] = "ERR"
             entry["des_errore"] = "File XML non trovato nel log"
         else:
-            # Verifica esistenza file
-            if not os.path.exists(nom_file):
-                entry["cod_stato"] = "ERR"
-                entry["des_errore"] = f"File non trovato: {nom_file}"
+            # Verifica esistenza file prima su C:\... poi su \\cdabackup...
+            file_found = False
+            original_path = nom_file_path
+            # Se il path contiene DataSharingShare, prova prima con C:\...
+            if nom_file_path and "DataSharingShare" in nom_file_path:
+                local_path = nom_file_path.replace(r"\\cdabackup\DataSharing", r"C:\\Users\\gabriele.chiarillo.CDA\\source\\repos\\DataSharing\\DataSharingShare")
+                if os.path.exists(local_path):
+                    nom_file_path = local_path
+                    file_found = True
+                else:
+                    # Prova con il path di rete
+                    network_path = nom_file_path.replace(r"C:\\Users\\gabriele.chiarillo.CDA\\source\\repos\\DataSharing\\DataSharingShare", r"\\\\cdabackup\\DataSharing")
+                    if os.path.exists(network_path):
+                        nom_file_path = network_path
+                        file_found = True
+            # Se non trovato ancora, prova direttamente il path attuale
+            if not file_found and nom_file_path and os.path.exists(nom_file_path):
+                file_found = True
+            if not file_found:
+                entry["cod_stato"] = "WAR"
+                entry["des_errore"] = f"File non trovato: {original_path} (controllati sia locale che rete)"
+            else:
+                # Imposta a OK solo se cod_stato è vuoto, RUN o INS
+                if not entry["cod_stato"] or entry["cod_stato"] in ("RUN", "INS"):
+                    entry["cod_stato"] = "OK"
 
+    
         # Chiave primaria
         key_filters = {
             repo.column_mapping["cod_socio"]: entry["cod_socio"],

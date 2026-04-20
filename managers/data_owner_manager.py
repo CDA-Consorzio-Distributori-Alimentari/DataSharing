@@ -455,7 +455,7 @@ class DataSharingOwnerManager:
             self._excel_manager = ExcelManager()
         return self._excel_manager
 
-    def process_data(self, socio, periodo, config_ds: Option, send_summary_mail=True):
+    def main_process_data(self, socio, periodo, config_ds: Option, send_summary_mail=True):
         from datetime import datetime
         tx_repo = TabellaLoggingRepository(self.db_manager)
         now = datetime.now()
@@ -514,6 +514,21 @@ class DataSharingOwnerManager:
             # 4. Eseguo la query e ottengo il dataset da esportare.
             try:
                 database_results = self.db_manager.fetch_all(query)
+                # Se il risultato è vuoto, aggiorna stato, logga e termina il flusso senza generare file/output
+                if hasattr(database_results, "empty") and database_results.empty:
+                    self.log.warning(f"La query non ha prodotto risultati per socio {socio}, periodo {periodo}, data sharing {config_ds.code}.")
+                    tx_repo.update_status(
+                        cod_socio=socio,
+                        cod_datasharing=config_ds.code,
+                        num_periodo=periodo,
+                        tms_invio=now,
+                        cod_stato="WAR",
+                        des_errore="La query non ha prodotto risultati."
+                    )
+                    message = f"Nessun dato da esportare per socio {socio}, periodo {periodo}, data sharing {config_ds.code}."
+                    self.log.info(message)
+                    empty_result = self._build_result(True, message, output_file=None)
+                    return self._finalize_result(socio, periodo, config_ds, socio_data, empty_result, send_summary_mail=send_summary_mail)
             except Exception as db_exc:
                 tx_repo.update_status(
                     cod_socio=socio,

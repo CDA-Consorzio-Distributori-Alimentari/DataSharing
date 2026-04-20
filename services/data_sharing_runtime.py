@@ -56,7 +56,7 @@ class DataSharingRuntime:
         results = []
         send_summary_mail = len(periods) == 1
         for single_period in periods:
-            results.append(self.dso_manager.process_data(socio, single_period, config_ds, send_summary_mail=send_summary_mail))
+            results.append(self.dso_manager.main_process_data(socio, single_period, config_ds, send_summary_mail=send_summary_mail))
 
         aggregated_result = self.build_aggregated_result(socio, periods, config_ds, results)
         if len(periods) > 1:

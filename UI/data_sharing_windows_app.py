@@ -5,7 +5,7 @@ import json
 from services.data_sharing_runtime import DataSharingRuntime
 
 import threading
-import datetime
+from datetime import datetime
 from .tool_tip import ToolTip
 from .socio_data_sharing_management_window import SocioDataSharingManagementWindow
 from .tabella_logging_windows import TabellaLoggingWindows
@@ -736,7 +736,7 @@ class DataSharingWindowsApp:
                             f"  - Periodo {idx}/{total}: {p} in elaborazione...\n"
                         ),
                     )
-                    result = self.backend.dso_manager.process_data(
+                    result = self.backend.dso_manager.main_process_data(
                         socio_code,
                         single_period,
                         option,
