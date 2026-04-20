@@ -3,7 +3,7 @@ import os
 import sys
 import shutil
 
-RELEASE_DIR = r"\\cdabackup\DataSharing\release"
+RELEASE_DIR = r"\\192.168.105.200\DataSharing\release"
 LOCAL_VERSION_PATH = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "VERSION")
 REMOTE_VERSION_PATH = os.path.join(RELEASE_DIR, "VERSION")
 FILES_TO_UPDATE = ["datasharing.exe", "datasharing_windows.exe", "config.json", "config.template.json", "GUIDA_UTENTE_DATASHARING.md", "VERSION"]
@@ -36,13 +36,19 @@ def check_and_update_from_release():
             # Avvia updater.py per aggiornare anche l'eseguibile in uso
             updater_path = os.path.join(current_dir, "updater.bat")
             files_arg = ",".join(FILES_TO_UPDATE)
-            if not os.path.exists(updater_path):
-                # Crea updater.bat se non esiste
-                updater_content = (
-                    "@echo off\r\nsetlocal\r\n\r\nREM updater.bat <path_exe> <path_release_dir> <file1,file2,...>\r\n\r\nset \"EXE_PATH=%~1\"\r\nset \"RELEASE_DIR=%~2\"\r\nset \"FILES=%~3\"\r\nset \"TARGET_DIR=%~dp1\"\r\n\r\nREM Attendi che l'eseguibile non sia più in uso\r\n:waitloop\r\nping 127.0.0.1 -n 2 >nul\r\nmove \"%EXE_PATH%\" \"%EXE_PATH%\" >nul 2>&1\r\nif errorlevel 1 goto waitloop\r\n\r\nREM Copia i file aggiornati\r\nfor %%F in (%FILES%) do (\r\n    if exist \"%RELEASE_DIR%\\%%F\" copy /Y \"%RELEASE_DIR%\\%%F\" \"%TARGET_DIR%\\%%F\"\r\n)\r\n\r\nREM Riavvia il programma\r\nstart \"\" \"%EXE_PATH%\"\r\n\r\nexit /b 0\r\n"
-                )
-                with open(updater_path, "w", encoding="utf-8") as f:
-                    f.write(updater_content)
+            # Ricrea sempre updater.bat con path hardcoded
+            updater_content = (
+                "@echo off\r\nsetlocal\r\n"
+                "set \"RELEASE_DIR=\\192.168.105.200\DataSharing\release\"\r\n"
+                "set \"TARGET_DIR=%~dp0\"\r\n"
+                "set \"FILES=%~3\"\r\n"
+                "REM Attendi che l'eseguibile non sia più in uso\r\n:waitloop\r\nping 127.0.0.1 -n 2 >nul\r\nmove \"%~1\" \"%~1\" >nul 2>&1\r\nif errorlevel 1 goto waitloop\r\n"
+                "REM Copia i file aggiornati\r\nfor %%F in (%FILES%) do (\r\n    if exist \"%RELEASE_DIR%\\%%F\" copy /Y \"%RELEASE_DIR%\\%%F\" \"%TARGET_DIR%\\%%F\"\r\n)\r\n"
+                "REM Riavvia sempre datasharing_windows.exe\r\nstart \"\" \"%TARGET_DIR%datasharing_windows.exe\"\r\n"
+                "exit /b 0\r\n"
+            )
+            with open(updater_path, "w", encoding="utf-8") as f:
+                f.write(updater_content)
             import subprocess
             subprocess.Popen([updater_path, sys.argv[0], RELEASE_DIR, files_arg], shell=True)
             sys.exit(0)
