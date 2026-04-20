@@ -1,4 +1,3 @@
-
 import os
 import sys
 import shutil
@@ -35,25 +34,28 @@ def check_and_update_from_release():
                 pass
             # Avvia updater.py per aggiornare anche l'eseguibile in uso
             updater_path = os.path.join(current_dir, "updater.bat")
-            files_arg = ",".join(FILES_TO_UPDATE)
-            # Ricrea sempre updater.bat con path hardcoded
+            # Ricava dinamicamente la cartella release accanto all'eseguibile, altrimenti usa una share di default
+            local_release = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "release")
+            if os.path.isdir(local_release):
+                release_dir_hardcoded = local_release
+            else:
+                release_dir_hardcoded = r"\\192.168.105.200\DataSharing\release"
             updater_content = (
-                "@echo off\r\nsetlocal\r\n"
-                "set \"RELEASE_DIR=\\192.168.105.200\DataSharing\release\"\r\n"
-                "set \"TARGET_DIR=%~dp0\"\r\n"
-                "set \"FILES=%~3\"\r\n"
-                "REM Attendi che l'eseguibile non sia più in uso\r\n:waitloop\r\nping 127.0.0.1 -n 2 >nul\r\nmove \"%~1\" \"%~1\" >nul 2>&1\r\nif errorlevel 1 goto waitloop\r\n"
-                "REM Copia i file aggiornati\r\nfor %%F in (%FILES%) do (\r\n    if exist \"%RELEASE_DIR%\\%%F\" copy /Y \"%RELEASE_DIR%\\%%F\" \"%TARGET_DIR%\\%%F\"\r\n)\r\n"
-                "REM Riavvia sempre datasharing_windows.exe\r\nstart \"\" \"%TARGET_DIR%datasharing_windows.exe\"\r\n"
-                "exit /b 0\r\n"
+                f"@echo off\r\nsetlocal\r\n"
+                f"set \"RELEASE_DIR={release_dir_hardcoded}\"\r\n"
+                f"set \"TARGET_DIR={current_dir}\"\r\n"
+                "REM Copia i file aggiornati\r\nfor %%F in (datasharing.exe datasharing_windows.exe config.json config.template.json GUIDA_UTENTE_DATASHARING.md VERSION) do (\r\n    echo Copio \"%RELEASE_DIR%\\%%F\" su \"%TARGET_DIR%\\%%F\"\r\n    if exist \"%RELEASE_DIR%\\%%F\" copy /Y \"%RELEASE_DIR%\\%%F\" \"%TARGET_DIR%\\%%F\"\r\n)\r\n"
+                "REM Riavvia sempre datasharing_windows.exe\r\nif exist \"%TARGET_DIR%datasharing_windows.exe\" (\r\n    echo Avvio datasharing_windows.exe...\r\n    start \"\" \"%TARGET_DIR%datasharing_windows.exe\"\r\n) else (\r\n    echo ERRORE: %TARGET_DIR%datasharing_windows.exe non trovato!\r\n)\r\n"
+                "echo Operazione completata. Premi un tasto per chiudere.\r\npause >nul\r\nexit /b 0\r\n"
             )
             with open(updater_path, "w", encoding="utf-8") as f:
                 f.write(updater_content)
             import subprocess
-            subprocess.Popen([updater_path, sys.argv[0], RELEASE_DIR, files_arg], shell=True)
+            subprocess.Popen([updater_path], shell=True)
             sys.exit(0)
     except Exception as e:
         print(f"Errore controllo aggiornamento automatico: {e}")
+
 
 import tkinter as tk
 from tkinter import messagebox, ttk
