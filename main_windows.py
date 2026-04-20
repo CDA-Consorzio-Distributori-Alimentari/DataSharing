@@ -1,6 +1,13 @@
 import os
 import sys
 import shutil
+import tkinter as tk
+from tkinter import messagebox, ttk
+from datetime import datetime
+from managers.active_directory_authorization_manager import ActiveDirectoryAuthorizationManager, AuthorizationError
+from UI.data_sharing_selector import main_selector_window
+
+
 
 RELEASE_DIR = r"\\192.168.105.200\DataSharing\release"
 LOCAL_VERSION_PATH = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "VERSION")
@@ -40,16 +47,31 @@ def check_and_update_from_release():
                 release_dir_hardcoded = local_release
             else:
                 release_dir_hardcoded = r"\\192.168.105.200\DataSharing\release"
-            target_dir_hardcoded = current_dir
-            if not target_dir_hardcoded.endswith("\\"):
-                target_dir_hardcoded += "\\"
+            target_dir_hardcoded = current_dir  # Senza barra finale
             updater_content = (
-                f"@echo off\r\nsetlocal\r\n"
+                f"@echo off\r\n"
+                f"setlocal\r\n"
                 f"set \"RELEASE_DIR={release_dir_hardcoded}\"\r\n"
                 f"set \"TARGET_DIR={target_dir_hardcoded}\"\r\n"
-                "REM Copia i file aggiornati\r\nfor %%F in (datasharing.exe datasharing_windows.exe config.json config.template.json GUIDA_UTENTE_DATASHARING.md VERSION) do (\r\n    echo Copio \"%RELEASE_DIR%\\%%F\" su \"%TARGET_DIR%\\%%F\"\r\n    if exist \"%RELEASE_DIR%\\%%F\" copy /Y \"%RELEASE_DIR%\\%%F\" \"%TARGET_DIR%\\%%F\"\r\n)\r\n"
-                "REM Riavvia sempre datasharing_windows.exe\r\nif exist \"%TARGET_DIR%datasharing_windows.exe\" (\r\n    echo Avvio datasharing_windows.exe...\r\n    start \"\" \"%TARGET_DIR%datasharing_windows.exe\"\r\n) else (\r\n    echo ERRORE: %TARGET_DIR%datasharing_windows.exe non trovato!\r\n)\r\n"
-                "echo Operazione completata. Premi un tasto per chiudere.\r\npause >nul\r\nexit /b 0\r\n"
+                "\r\nREM Copia i file aggiornati\r\n"
+                "for %%F in (datasharing.exe datasharing_windows.exe config.json config.template.json GUIDA_UTENTE_DATASHARING.md VERSION) do (\r\n"
+                "    echo Copio \"%RELEASE_DIR%\\%%F\" su \"%TARGET_DIR%\\%%F\"\r\n"
+                "    if exist \"%RELEASE_DIR%\\%%F\" (\r\n"
+                "        copy /Y \"%RELEASE_DIR%\\%%F\" \"%TARGET_DIR%\\%%F\"\r\n"
+                "    ) else (\r\n"
+                "        echo ATTENZIONE: \"%RELEASE_DIR%\\%%F\" non trovato!\r\n"
+                "    )\r\n"
+                ")\r\n"
+                "\r\nREM Riavvia sempre datasharing_windows.exe se esiste\r\n"
+                "if exist \"%TARGET_DIR%\\datasharing_windows.exe\" (\r\n"
+                "    echo Avvio datasharing_windows.exe...\r\n"
+                "    start \"\" \"%TARGET_DIR%\\datasharing_windows.exe\"\r\n"
+                ") else (\r\n"
+                "    echo ERRORE: \"%TARGET_DIR%\\datasharing_windows.exe\" non trovato!\r\n"
+                ")\r\n"
+                "\r\necho Operazione completata. Premi un tasto per chiudere.\r\n"
+                "pause >nul\r\n"
+                "exit /b 0\r\n"
             )
             with open(updater_path, "w", encoding="utf-8") as f:
                 f.write(updater_content)
@@ -59,15 +81,6 @@ def check_and_update_from_release():
     except Exception as e:
         print(f"Errore controllo aggiornamento automatico: {e}")
 
-
-import tkinter as tk
-from tkinter import messagebox, ttk
-
-from datetime import datetime
-from UI.data_sharing_windows_app import DataSharingWindowsApp
-
-
-from managers.active_directory_authorization_manager import ActiveDirectoryAuthorizationManager, AuthorizationError
 
 
 
@@ -88,8 +101,8 @@ def main():
         _show_startup_error(str(exc))
         return
 
-    app = DataSharingWindowsApp()
-    app.run()
+ 
+    main_selector_window()
 
 
 if __name__ == "__main__":

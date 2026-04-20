@@ -13,6 +13,8 @@ from .repositories import SocioDataSharingRepository, SociRepository, TabellaLog
 
 
 class DBManager:
+
+        
     def __init__(self, log_manager=None):
         config = Config()
         self.connection_string = config.get_connection_string()
@@ -590,3 +592,26 @@ class DBManager:
             )
 
         return soci_rows
+    def leggo_sociperiodo_attivi(self):
+            """
+            Restituisce un DataFrame con i record di TD_RPT_SOCIO_PERIODO con COD_STATO 'INS' o 'RUN' e sottoscrizione attiva (COD_STATO='A' in TA_SOTTOSCRIZIONI_RPT).
+            Chiama i repository SottoscrizioniRptRepository e TdRptSocioPeriodoRepository.
+            """
+            from .repositories.sottoscrizioni_rpt_repository import SottoscrizioniRptRepository
+            from .repositories.td_rpt_socio_periodo_repository import TdRptSocioPeriodoRepository
+
+            sottoscrizioni_repo = SottoscrizioniRptRepository(self)
+            sottoscrizioni_attive = sottoscrizioni_repo.get_dataframe(cod_stato='A')
+            if sottoscrizioni_attive.empty:
+                self._log_info("Nessuna sottoscrizione attiva trovata in TA_SOTTOSCRIZIONI_RPT.")
+                return None
+            codici_attivi = set(sottoscrizioni_attive['COD_SOTTOSCRIZIONE'])
+
+            td_rpt_repo = TdRptSocioPeriodoRepository(self)
+            df = td_rpt_repo.get_dataframe()
+            df = df[df['COD_STATO'].isin(['INS', 'RUN'])]
+            df = df[df['COD_SOTTOSCRIZIONE'].isin(codici_attivi)]
+            if df.empty:
+                self._log_info("Nessuna riga trovata in TD_RPT_SOCIO_PERIODO con sottoscrizione attiva.")
+                return None
+            return df.reset_index(drop=True)

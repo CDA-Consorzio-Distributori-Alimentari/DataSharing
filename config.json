@@ -1,4 +1,23 @@
 {
+    "StrategyConectionString": {
+        "Sviluppo": {
+            "base_url": "https://cda-dev.cloud.microstrategy.com/MicroStrategyLibrary/api",
+            "username": "a324-dev-administrator",
+            "password_enc": "Y2TBDeRIjNQ",
+            "project_name": "DWH CDA 2.0",
+            "project_id": "BBA62560462B072381509AB5E7F8B013",
+            "datasource_name": "DataWareHouse CDA"
+        },
+        "Produzione": {
+            "base_url": "https://cda.cloud.microstrategy.com/MicroStrategyLibrary/api",
+            "username": "a324-prd-administrator",
+            "password_enc": "wyodVo2l1fH",
+            "project_name": "DWH CDA 2.0",
+            "project_id": "BBA62560462B072381509AB5E7F8B013",
+            "datasource_name": "DataWareHouse CDA"
+        }
+    },
+    "STRATEGY_ENV": "Produzione",
     "DEBUG": false,
     "SUMMARY_MAIL_ENABLED": false,
     "data_sharing_options": [
