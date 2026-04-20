@@ -11,7 +11,7 @@ $WindowsSpecFile = Join-Path $ProjectRoot "datasharing_windows.spec"
 $DistDir = Join-Path $ProjectRoot "dist"
 $BuildDir = Join-Path $ProjectRoot "build"
 $DeployDir = Join-Path $ProjectRoot "deploy"
-$ReleaseDir = "\\cdabackup\DataSharing\release"
+$ReleaseDir = "\\192.168.105.200\DataSharing\release"
 $CliExePath = Join-Path $DistDir "datasharing.exe"
 $WindowsExePath = Join-Path $DistDir "datasharing_windows.exe"
 $GuidePath = Join-Path $ProjectRoot "GUIDA_UTENTE_DATASHARING.md"
@@ -105,7 +105,7 @@ function Clear-DirectoryContents {
     }
 }
 
-function Ensure-PackageDirectory {
+function New-PackageDirectory {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Path,
@@ -121,7 +121,12 @@ function Ensure-PackageDirectory {
         catch {
             throw "Impossibile aggiornare la cartella $Label '$Path'. Chiudere eventuali file aperti e riprovare. Dettaglio: $($_.Exception.Message)"
         }
+        return
+    }
 
+    # Se il percorso è UNC (inizia con \\), non tentare di crearlo, solo warning
+    if ($Path -like "\\\\*") {
+        Write-Warning "La cartella di rete '$Path' non esiste o non è raggiungibile. Creazione automatica saltata."
         return
     }
 
@@ -142,7 +147,7 @@ function Publish-Package {
         [string]$Label
     )
 
-    Ensure-PackageDirectory -Path $DestinationPath -Label $Label
+    New-PackageDirectory -Path $DestinationPath -Label $Label
 
     try {
         Copy-Item $CliExePath (Join-Path $DestinationPath "datasharing.exe") -Force
