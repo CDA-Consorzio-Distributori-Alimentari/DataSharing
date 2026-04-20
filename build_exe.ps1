@@ -24,7 +24,8 @@ $DeployFiles = @(
     "datasharing_windows.exe",
     "config.json",
     "GUIDA_UTENTE_DATASHARING.md",
-    "VERSION"
+    "VERSION",
+    "updater.bat"
 )
 
 function Invoke-NativeCommand {

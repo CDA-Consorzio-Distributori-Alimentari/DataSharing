@@ -6,6 +6,7 @@ La cartella `deploy` viene popolata automaticamente dallo script:
 .\build_exe.ps1
 ```
 
+
 Contenuto del pacchetto da copiare sul server:
 
 - `datasharing.exe`
@@ -14,6 +15,13 @@ Contenuto del pacchetto da copiare sul server:
 - `config.local.json`, se presente nel progetto al momento della build
 - `config.template.json`
 - `README_DEPLOY.md`
+- `updater.bat` (necessario per l'auto-aggiornamento automatico)
+
+## Aggiornamento automatico
+
+Se il programma viene eseguito fuori dalla cartella `\\cdabackup\DataSharing\release`, all'avvio controlla la versione presente nella share di rete. Se trova una versione più recente, copia i file aggiornati tramite `updater.bat` e riavvia automaticamente il programma. Non è richiesta la presenza di Python sulla macchina.
+
+Se `updater.bat` non è presente nella cartella, viene creato automaticamente dal programma prima dell'aggiornamento.
 
 Regole operative:
 

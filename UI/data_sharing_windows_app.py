@@ -179,12 +179,15 @@ class DataSharingWindowsApp:
         select_all_button.pack(side="left")
         clear_all_button = ttk.Button(soci_actions_frame, text="Deseleziona tutti", command=self._clear_soci_selection)
         clear_all_button.pack(side="left", padx=(8, 0))
+        refresh_soci_button = ttk.Button(soci_actions_frame, text="Aggiorna elenco soci", command=self._refresh_soci)
+        refresh_soci_button.pack(side="left", padx=(8, 0))
         ttk.Label(soci_actions_frame, text="Filtro soci").pack(side="left", padx=(16, 6))
         self.socio_filter_entry = ttk.Entry(soci_actions_frame, textvariable=self.socio_filter_var, width=32)
         self.socio_filter_entry.pack(side="left", fill="x", expand=True)
         self.socio_filter_entry.bind("<KeyRelease>", self._on_socio_filter_changed)
         ToolTip(select_all_button, "Seleziona tutti i soci attualmente visibili.")
         ToolTip(clear_all_button, "Rimuove la selezione da tutti i soci.")
+        ToolTip(refresh_soci_button, "Ricarica l'elenco dei soci abilitati dal database.")
         ToolTip(self.socio_filter_entry, "Filtra i soci per codice o ragione sociale.")
 
         self.soci_canvas = tk.Canvas(soci_label_frame, height=150, highlightthickness=0)
@@ -513,12 +516,51 @@ class DataSharingWindowsApp:
             return False
 
     def _update_run_button_state(self):
+        prev_state = getattr(self, '_prev_run_button_state', None)
         if self.is_processing:
             self.run_button.configure(state="disabled")
+            self.run_button.pack_forget()
+            self.run_button.pack(side="left")
+            self.run_button.configure(style="Red.TButton")
+            if prev_state != "processing":
+                self.status_var.set("Elaborazione in corso: pulsante disabilitato.")
+            self._prev_run_button_state = "processing"
             return
 
-        is_ready = bool(self.selected_option) and self._is_period_ready() and bool(self._get_selected_socio_codes())
-        self.run_button.configure(state="normal" if is_ready else "disabled")
+        missing = []
+        if not self.selected_option:
+            missing.append("data sharing")
+        if not self._is_period_ready():
+            missing.append("periodo")
+        if not self._get_selected_socio_codes():
+            missing.append("soci")
+
+        is_ready = not missing
+        if is_ready:
+            self.run_button.pack_forget()
+            self.run_button.pack(side="left")
+            self.run_button.configure(state="normal", style="TButton")
+            if prev_state != "normal":
+                self.status_var.set("Pronto per avviare l'elaborazione.")
+            self._prev_run_button_state = "normal"
+        else:
+            self.run_button.pack_forget()
+            self._prev_run_button_state = "hidden"
+            if len(missing) == 1:
+                msg = f"Seleziona {missing[0]} per abilitare l'elaborazione."
+            else:
+                msg = "Compila: " + ", ".join(missing) + "."
+            self.status_var.set(msg)
+
+    # Stile rosso per il pulsante in elaborazione
+    def _configure_styles(self):
+        self.style.configure("TFrame", background=self.normal_background)
+        self.style.configure("TLabelframe", background=self.normal_background)
+        self.style.configure("TLabelframe.Label", background=self.normal_background)
+        self.style.configure("TLabel", background=self.normal_background)
+        self.style.configure("TCheckbutton", background=self.normal_background)
+        self.style.configure("TRadiobutton", background=self.normal_background)
+        self.style.configure("Red.TButton", background="#ff4d4d", foreground="white")
     
 
     def _open_tabella_logging_window(self):
@@ -634,6 +676,32 @@ class DataSharingWindowsApp:
 
         try:
             self._period_validation_in_progress = True
+            value = self.period_value_var.get().strip()
+            expected_length = 4 if self.period_type_var.get() == "year" else 6
+            # Se l'utente ha inserito un periodo invece di un anno o viceversa, proponi il cambio
+            if value.isdigit():
+                if self.period_type_var.get() == "year" and len(value) == 6:
+                    res = messagebox.askyesno(
+                        "Tipo periodo non coerente",
+                        "Hai inserito un periodo (YYYYMM) ma la selezione è su 'Anno'. Vuoi passare a 'Periodo mensile'?",
+                        parent=self.root
+                    )
+                    if res:
+                        self.period_type_var.set("month")
+                        self.period_entry.icursor(tk.END)
+                        self._update_run_button_state()
+                        return
+                elif self.period_type_var.get() == "month" and len(value) == 4:
+                    res = messagebox.askyesno(
+                        "Tipo periodo non coerente",
+                        "Hai inserito un anno (YYYY) ma la selezione è su 'Periodo mensile'. Vuoi passare a 'Anno'?",
+                        parent=self.root
+                    )
+                    if res:
+                        self.period_type_var.set("year")
+                        self.period_entry.icursor(tk.END)
+                        self._update_run_button_state()
+                        return
             messagebox.showwarning("Validazione periodo", self._last_period_error, parent=self.root)
             self._focus_period_entry()
         finally:
@@ -662,15 +730,21 @@ class DataSharingWindowsApp:
         state = "disabled" if is_running else "normal"
         combo_state = "disabled" if is_running else "readonly"
 
+        # Disabilita tutti i widget tranne l'output
         self.datasharing_combo.configure(state=combo_state)
         self.period_entry.configure(state=state)
         self.debug_checkbutton.configure(state=state)
+        self.summary_mail_checkbutton.configure(state=state)
+        self.manage_relations_button.configure(state=state)
+        self.tabella_logging_button.configure(state=state)
+        self.socio_filter_entry.configure(state=state)
         for child in self.soci_frame.winfo_children():
             try:
                 child.configure(state=state)
             except tk.TclError:
                 pass
-
+        # Output sempre abilitato
+        self.output_text.configure(state="normal")
         if not is_running and self.progress_var.get() < 100:
             self.progress_var.set(0)
             self.progress_text_var.set("0%")
@@ -685,7 +759,7 @@ class DataSharingWindowsApp:
             return
 
         option = self.selected_option
-        self._last_run_started_at = datetime.datetime.now()
+        self._last_run_started_at = datetime.now()
         self._set_running_state(True)
         self.progress_var.set(0)
         self.progress_text_var.set("0%")
@@ -862,10 +936,11 @@ class DataSharingWindowsApp:
         messagebox.showerror("DataSharing", str(exc), parent=self.root)
 
     def run(self):
-        try:    
+        try:
             self.root.mainloop()
         except Exception as exc:
-              messagebox.showerror("DataSharing", str(exc), parent=self.root)
+            # Protezione: non stampare nulla, solo mostrare errore grafico
+            messagebox.showerror("DataSharing", str(exc), parent=self.root)
 
 
 

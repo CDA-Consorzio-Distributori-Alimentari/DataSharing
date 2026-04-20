@@ -114,7 +114,7 @@ class ActiveDirectoryAuthorizationManager:
                 group_names.append(group_name)
 
         self.log.info(f"Fallback whoami completato. Gruppi letti: {len(group_names)}.")
-        self.log.debug(f"Gruppi letti da whoami: {group_names}")
+        # self.log.debug(f"Gruppi letti da whoami: {group_names}")
         return group_names
 
     def _open_current_process_token(self):
