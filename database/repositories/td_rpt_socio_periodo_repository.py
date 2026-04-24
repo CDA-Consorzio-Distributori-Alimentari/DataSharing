@@ -13,6 +13,10 @@ class TdRptSocioPeriodoRepository(BaseRepository):
         "cod_obj": "COD_OBJ",
         "cod_esecuzione": "COD_ESECUZIONE",
         "cod_stato": "COD_STATO",
+        "des_error": "DES_ERROR",
+        "tms_start": "TMS_START",
+        "tms_end": "TMS_END"
+
     }
 
     def __init__(self, db_manager):
@@ -54,49 +58,49 @@ class TdRptSocioPeriodoRepository(BaseRepository):
             return pd.DataFrame([])
 
    
-        query_narrowcast = f"""
-            SELECT 
-                TC_Soci_Codice AS ID_SOCIO,
-                TW_Narrowcast_Periodo AS NUM_PERIODO,
-                TW_Narrowcast_Stato AS COD_STATO,
-                TW_Narrowcast_Import AS COD_IMPORT
-            FROM TW_Narrowcast
-            ORDER BY TC_Soci_Codice
-            """
-        df_narrowcast = db_utils.execute_select_query_to_dataframe(query_narrowcast)
-        if df_narrowcast.empty:
-            self.db_manager._log_info("Nessuna riga trovata in TW_Narrowcast.")
-            return None
-        return df_narrowcast
+        # query_narrowcast = f"""
+        #     SELECT 
+        #         TC_Soci_Codice AS ID_SOCIO,
+        #         TW_Narrowcast_Periodo AS NUM_PERIODO,
+        #         TW_Narrowcast_Stato AS COD_STATO,
+        #         TW_Narrowcast_Import AS COD_IMPORT
+        #     FROM TW_Narrowcast
+        #     ORDER BY TC_Soci_Codice
+        #     """
+        # df_narrowcast = db_utils.execute_select_query_to_dataframe(query_narrowcast)
+        # if df_narrowcast.empty:
+        #     self.db_manager._log_info("Nessuna riga trovata in TW_Narrowcast.")
+        #     return None
+        # return df_narrowcast
 
     
-        """
-        Restituisce un DataFrame con i flussi filtrati per periodo e logica di stato/attività custom.
-        """
-        query = f"""
-            SELECT
-                f.TC_Soci_Codice,
-                f.TC_Soci_Polo,
-                f.TC_Flussi_Periodo,
-                f.TC_Flussi_Tipo_Flussi,
-                f.TC_Flussi_Stato_Flusso,
-                f.TC_Flussi_Periodo_Riferimento
-            FROM TC_Flussi f
-            INNER JOIN TC_Soci s ON f.TC_Soci_Codice = s.TC_Soci_Codice
-            WHERE 
-                f.TC_Flussi_Periodo = {periodo}
-                AND s.TC_Soci_Socio_Attivo > 0
-                AND (
-                    f.TC_Flussi_Stato_Flusso NOT IN (0, -1)                                                
-                    OR (f.TC_Flussi_Stato_Flusso = -1 AND f.TC_Flussi_Tipo_Flussi NOT IN (1, 3, 4, 5))                                                
-                    OR (f.TC_Flussi_Stato_Flusso = 0 AND f.TC_Flussi_Tipo_Flussi != 2)
-                )
-        """
-        df = db_utils.execute_select_query_to_dataframe(query)
-        if df.empty:
-            self.db_manager._log_info("Nessuna riga trovata in TcFlussi.")
-            return None
-        return df
+        # """
+        # Restituisce un DataFrame con i flussi filtrati per periodo e logica di stato/attività custom.
+        # """
+        # query = f"""
+        #     SELECT
+        #         f.TC_Soci_Codice,
+        #         f.TC_Soci_Polo,
+        #         f.TC_Flussi_Periodo,
+        #         f.TC_Flussi_Tipo_Flussi,
+        #         f.TC_Flussi_Stato_Flusso,
+        #         f.TC_Flussi_Periodo_Riferimento
+        #     FROM TC_Flussi f
+        #     INNER JOIN TC_Soci s ON f.TC_Soci_Codice = s.TC_Soci_Codice
+        #     WHERE 
+        #         f.TC_Flussi_Periodo = {periodo}
+        #         AND s.TC_Soci_Socio_Attivo > 0
+        #         AND (
+        #             f.TC_Flussi_Stato_Flusso NOT IN (0, -1)                                                
+        #             OR (f.TC_Flussi_Stato_Flusso = -1 AND f.TC_Flussi_Tipo_Flussi NOT IN (1, 3, 4, 5))                                                
+        #             OR (f.TC_Flussi_Stato_Flusso = 0 AND f.TC_Flussi_Tipo_Flussi != 2)
+        #         )
+        # """
+        # df = db_utils.execute_select_query_to_dataframe(query)
+        # if df.empty:
+        #     self.db_manager._log_info("Nessuna riga trovata in TcFlussi.")
+        #     return None
+        # return df
 
     def leggo_TD_RPT_SOCIO_PERIODO(self):
         """
@@ -185,7 +189,7 @@ class TdRptSocioPeriodoRepository(BaseRepository):
             payload["DES_ERROR"] = des_error
         return self.add(payload)
 
-    def aggiorna_TD_RPT_SOCIO_PERIODO(self, id_socio: int, num_periodo: int, cod_sottoscrizione: str, cod_esecuzione: str, cod_stato: str = "A", des_error: str = None):
+    def aggiorna_TD_RPT_SOCIO_PERIODO(self, id_socio: int, num_periodo: int, cod_sottoscrizione: str, cod_esecuzione: str, cod_stato: str = "INS", des_error: str = None):
         """
         Aggiorna una riga in TD_RPT_SOCIO_PERIODO con i parametri forniti.
         """
@@ -194,11 +198,22 @@ class TdRptSocioPeriodoRepository(BaseRepository):
             self.column_mapping["num_periodo"]: num_periodo,
             self.column_mapping["cod_sottoscrizione"]: cod_sottoscrizione
         }
+
         payload = {
             self.column_mapping["cod_esecuzione"]: cod_esecuzione,
-            self.column_mapping["cod_stato"]: cod_stato
+            self.column_mapping["cod_stato"]: cod_stato,            
         }
-        if des_error is not None:
-            payload["DES_ERROR"] = des_error
-        return self.update_by_filters(filters, payload)
+        # Aggiorna tms_start solo se stato è INS o RUN
+        if cod_stato in ("INS", "RUN"):
+            payload[self.column_mapping["tms_start"]] = datetime.now()
+            payload[self.column_mapping["des_error"]] = None
+        # Aggiorna tms_end solo se stato è OKS o ERR
+        elif cod_stato in ("OKS"):
+            payload[self.column_mapping["tms_end"]] = datetime.now()
+            payload[self.column_mapping["des_error"]] = None
+        elif cod_stato in ("ERR"):
+            payload[self.column_mapping["des_error"]] = des_error[:8000] if des_error is not None else None
+            payload[self.column_mapping["tms_end"]] = datetime.now()
+        result = self.update_by_filters(filters, payload)
+        return bool(result)
 

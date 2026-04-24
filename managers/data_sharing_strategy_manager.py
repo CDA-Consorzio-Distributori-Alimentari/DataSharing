@@ -2,7 +2,12 @@ import time
 from datetime import datetime
 from typing import Optional
 
+import mstrio
+
 # Import delle classi e funzioni esterne
+from database.db_manager import DBManager
+from database.repositories.sottoscrizioni_rpt_repository import SottoscrizioniRptRepository
+from managers.log_manager import LogManager
 from services.mstr_connection import get_mstr_connection
 from services.mstr_jobs import list_jobs, JobType, SubscriptionType, SubscriptionStage, SubscriptionState
 
@@ -20,7 +25,7 @@ from mstrio.project_objects.dashboard import (
     list_dashboards_across_projects
 )
 from mstrio.project_objects.report import Report
-
+from mstrio.users_and_groups.contact import Contact
 from mstrio.api.documents import *
 from mstrio.api.reports import *
 from mstrio.distribution_services.subscription.subscription_status import *
@@ -38,22 +43,16 @@ from mstrio.modeling.filter import Filter
 from database.repositories.td_rpt_socio_periodo_repository import TdRptSocioPeriodoRepository
 
 class DataSharingStrategyManager:
-    def get_enabled_entities(self, option):
-        """
-        Returns a list of enabled entities (entità) for the given data sharing option.
-        """
-        
-        repo = TdRptSocioPeriodoRepository(self.db_utils)
-        df = repo.get_relations_dataframe(datasharing_code=option.code, only_enabled=True, only_current_tool=True)
-        # Return as list of dicts with code and name for UI
-        return [
-            {"code": row["TC_Soci_Codice"], "name": row["TC_Soci_Ragione_Sociale"]}
-            for _, row in df.iterrows()
-        ]
+    
     def __init__(self, db_utils, myLogger, strategy_env=None):
-        self.db_utils = db_utils
+       
         self.myLogger = myLogger
         self.strategy_env = strategy_env or "Produzione"
+        #self.log = LogManager(self.config.log_file, self.config.log_level)
+        #self.db_manager = DBManager(self.log)
+        self.db_manager = DBManager(self.myLogger)  
+        self.Esecuzioni = TdRptSocioPeriodoRepository(self.db_manager)
+        self.Sottoscrizioni = SottoscrizioniRptRepository(self.db_manager)
 
     #OK 2
     def manage_sottoscrizione_mstrio(self, cod_sottoscrizione: str, cod_tipo: str = "MAIL") -> Optional[str]:
@@ -89,7 +88,7 @@ class DataSharingStrategyManager:
         """
         try:
             self.myLogger.log("Inizio elaborazione dalla coda.")
-            df_TA_SOTTOSCRIZIONI_RPT = self.leggo_TA_SOTTOSCRIZIONI_RPT()
+            df_TA_SOTTOSCRIZIONI_RPT = self.Sottoscrizioni.get_dataframe()
             if df_TA_SOTTOSCRIZIONI_RPT is None or df_TA_SOTTOSCRIZIONI_RPT.empty:
                 self.myLogger.log("ESCO: Nessuna sottoscrizione Abilitata.")
                 return
@@ -247,7 +246,7 @@ class DataSharingStrategyManager:
                         elif (mysubscription_type == SubscriptionType.FTP):
                             sub: FTPSubscription = self.initialize_ftp_subscription(conn, row['COD_SOTTOSCRIZIONE'])
                         self.myLogger.log(f"📝 Aggiorno TD_RPT_SOCIO_PERIODO: ID_SOCIO={row['ID_SOCIO']}, NUM_PERIODO={row['NUM_PERIODO']}, COD_SOTTOSCRIZIONE={row['COD_SOTTOSCRIZIONE']}, COD_ESECUZIONE={job_found.id}, COD_STATO=RUN")
-                        self.aggiorna_TD_RPT_SOCIO_PERIODO(
+                        self.Esecuzioni.aggiorna_TD_RPT_SOCIO_PERIODO(
                                     id_socio=row['ID_SOCIO'],
                                     num_periodo=row['NUM_PERIODO'],
                                     cod_sottoscrizione=row['COD_SOTTOSCRIZIONE'],
@@ -289,70 +288,66 @@ class DataSharingStrategyManager:
             return False
         
     #OK
-    def execute_sottoscrizione(self, cod_sottoscrizione, cod_rpt,  cod_socio, periodo, mysubscription_type : SubscriptionType):
-        found_job1 = None  # Ensure variable is always defined
+    def execute_sottoscrizione(self, cod_sottoscrizione, cod_rpt,  name="NA", cod_socio=None, periodo=None, mysubscription_type : SubscriptionType=None):
+        
         self.modificaFiltro(cod_socio, periodo)
         try:
             conn = get_mstr_connection(self.strategy_env)
-            sub = self.initialize_email_subscription(conn, cod_sottoscrizione)
+            
 
             if (mysubscription_type == SubscriptionType.EMAIL):
                 sub: EmailSubscription = self.initialize_email_subscription(conn, cod_sottoscrizione)
-                sub.alter(email_subject=f"Chiusura Socio {cod_socio} per il periodo {periodo}", filename=f"chiusura_{cod_socio}_{periodo}")
+                sub.alter(email_subject=f"Sottoscrizione {name} per il periodo {periodo}", filename=f"sottoscrizione_{name}_{periodo}")
             elif (mysubscription_type == SubscriptionType.FTP):
                 sub: FTPSubscription = self.initialize_ftp_subscription(conn, cod_sottoscrizione)
                 sub.alter(filename = f"Estrazione CDA {periodo}")   
             
             sub.fetch()
-            self.aggiorna_TD_RPT_SOCIO_PERIODO(
+            self.Esecuzioni.aggiorna_TD_RPT_SOCIO_PERIODO(
                 id_socio=cod_socio,
                 num_periodo=periodo,
                 cod_sottoscrizione=cod_sottoscrizione,
-                cod_esecuzione= self.COD_ESECUZIONE,
+                cod_esecuzione= 'RUNNING',
                 cod_stato='RUN'
             )
-            self.myLogger.log(f"[Chiusura Socio {cod_socio} per il periodo {periodo}] Stato iniziale RUN e esecuzione avviata.")
+            self.myLogger.log(f"[Sottoscrizione {name} per il periodo {periodo}] Stato iniziale RUN e esecuzione avviata.")
             sub.execute()
-            giro = 0
-            while (sub.status.stage != SubscriptionStage.EXECUTING or found_job1 is None) and giro < 10:
-                sub.fetch()                
-                giro += 1
-                running_jobs1 = list_jobs(
-                    connection=conn,
-                    type=JobType.SUBSCRIPTION,
-                    subscription_type= mysubscription_type,
-                    object_id=cod_rpt
-                )
-                for job in running_jobs1:
-                    if hasattr(job, 'object_id') and job.object_id == cod_rpt:
-                        found_job1 = job
-                        self.myLogger.log(f"[Chiusura Socio {cod_socio} per il periodo {periodo}] 🔎 Job trovato con object_id == cod_rpt: id={job.id}, object_id={job.object_id}, stato={getattr(job, 'status', None)}")
-                        break
-                if found_job1 is None:
-                    time.sleep(5)
+            
+            while sub.status.stage == SubscriptionStage.EXECUTING :
+                sub.fetch()                              
+                self.myLogger.log(f"[Sottoscrizione {name} per il periodo {periodo}] Stage: {sub.status.stage}")
+                time.sleep(5)
 
-            # Nuova logica: solo se sub.status.stage == EXECUTING e found_job1 è stato trovato è tutto ok
-            if sub.status.stage == SubscriptionStage.EXECUTING and found_job1 is not None:
-                cod_stato = "RUN"
-                cod_esecuzione = found_job1.id
-                self.myLogger.log(f"[Chiusura Socio {cod_socio} per il periodo {periodo}] ✅ Sottoscrizione in esecuzione: stage EXECUTING e job trovato. id={found_job1.id}")
+            desc_error = None
+
+            if sub.status.stage == SubscriptionStage.FINISHED:
+                if sub.status.state != SubscriptionState.SUCCESS:            
+                    cod_stato = "ERR"
+                    # Serializza lo status in stringa per il log/errore
+                    desc_error = str(sub.status.statuses)
+                    self.myLogger.log(f"[Sottoscrizione {name} per il periodo {periodo}] Errore: stage={sub.status.stage}, statuses={desc_error}")
+                else:
+                    cod_stato = "OKS"
+                    
+                    self.myLogger.log(f"[Sottoscrizione {name} per il periodo {periodo}] Completata con successo.")
             else:
-                cod_stato = "RUN"
-                cod_esecuzione = found_job1.id if found_job1 is not None else self.COD_ESECUZIONE
-                self.myLogger.log(f"[Chiusura Socio {cod_socio} per il periodo {periodo}] ❌ Errore: stage={sub.status.stage}, job trovato={found_job1 is not None}")
+                cod_stato = "ERR"
+                desc_error = f"Stage: {sub.status.stage}"
+                self.myLogger.log(f"[Sottoscrizione {name} per il periodo {periodo}] Errore: stage={sub.status.stage}")
 
-            self.repo.aggiorna_TD_RPT_SOCIO_PERIODO(
+            self.Esecuzioni.aggiorna_TD_RPT_SOCIO_PERIODO(
                 id_socio=cod_socio,
                 num_periodo=periodo,
                 cod_sottoscrizione=cod_sottoscrizione,
-                cod_esecuzione=cod_esecuzione,
-                cod_stato=cod_stato
+                cod_esecuzione="",
+                cod_stato=cod_stato,
+                des_error=desc_error
             )
-            self.myLogger.log(f"[Chiusura Socio {cod_socio} per il periodo {periodo}] Stato aggiornato a {cod_stato} con COD_ESECUZIONE={cod_esecuzione}.")
+            self.myLogger.log(f"[Sottoscrizione {name} per il periodo {periodo}] Stato aggiornato a {cod_stato} ")
 
         except Exception as e:
             self.myLogger.log_exception(e)
-            self.repo.aggiorna_TD_RPT_SOCIO_PERIODO(
+            self.Esecuzioni.aggiorna_TD_RPT_SOCIO_PERIODO(
                 id_socio=cod_socio,
                 num_periodo=periodo,
                 cod_sottoscrizione=cod_sottoscrizione,
@@ -360,12 +355,12 @@ class DataSharingStrategyManager:
                 cod_stato='ERR',
                 des_error=str(e) if isinstance(e, Exception) else None
             )
-            self.myLogger.log(f"[Chiusura Socio {cod_socio} per il periodo {periodo}] ⚠️ Stato aggiornato a 'ERR' per periodo {periodo}")
+            self.myLogger.log(f"[Sottoscrizione {name} per il periodo {periodo}] ⚠️ Stato aggiornato a 'ERR' per periodo {periodo}")
             raise ValueError(f"Errore durante l'elaborazione del periodo {periodo}: {e}")
         finally:
             conn.close()
 
-        self.myLogger.log(f"[Chiusura Socio {cod_socio} per il periodo {periodo}] ✅ Inserimento storico completato per sottoscrizione {cod_sottoscrizione} ({cod_rpt})  per il periodo {periodo}.")
+        self.myLogger.log(f"[Sottoscrizione {name} per il periodo {periodo}] ✅ Inserimento storico completato per sottoscrizione {cod_sottoscrizione} ({cod_rpt})  per il periodo {periodo}.")
    
     #OK
     def initialize_email_subscription(self, conn: Connection, cod_sottoscrizione: str) -> EmailSubscription:
@@ -457,3 +452,89 @@ class DataSharingStrategyManager:
         # filter.alter(qualification=newqualification, comments="test di prova")
         # filter.fetch()  # aggiorna l'oggetto filter locale con i dati reali dal server
         # print(filter.qualification)
+    
+    def get_enabled_entities(self, option):
+        """
+        Returns a list of enabled entities (entità) for the given data sharing option.
+        """
+        
+       
+        df = self.Esecuzioni.get_relations_dataframe(datasharing_code=option.code, only_enabled=True, only_current_tool=True)
+        # Return as list of dicts with code and name for UI
+        return [
+            {"code": row["TC_Soci_Codice"], "name": row["TC_Soci_Ragione_Sociale"]}
+            for _, row in df.iterrows()
+        ]
+
+    def ricrea_sottoscrizione(self):
+        try:
+            conn = get_mstr_connection()
+        
+
+            #select_documencumnt = Document(conn, id='611042A93F4E635FAD9E14AF02CF12A8')
+            #select_documencumnt = Report(conn, id='B99BD6363B46E98CC28880999BB49233')
+            select_documencumnt = Report(conn, id='66C1442E42419F8A30E80BA52B621D5A')
+            #select_dashboard = Dashboard(conn , id='1A5F7BC13E4C732BF6AEA6B443991645')
+
+            # List Schedules and select one that will be used for the subscription
+            # It will be 'At Close of Business (Weekday)' in our example here
+            schedules = list_schedules(conn, name= 'Books Closed')
+
+            selected_schedule = Schedule(conn,id='3450AE6F4E29E9A6E1075DA93B7062AA')
+            print(selected_schedule)
+
+
+            # Define the user that will receive the subscription
+            # It will be 'Administrator' in our example here
+            #users = list_users(conn, name_begins='team cda 2')
+            selected_user = User(conn, username='gabriele.chiarillo')
+            select_contact = Contact(conn, username='DWH')
+            #contact = Contact(conn, )
+            #selected_user = User(conn, username='susanna.mojoli')
+            #selected_user = users[0]
+            print(selected_user)
+
+            # Create Subscription
+            mailsubscription = EmailSubscription.create(
+                connection=conn,
+                name='DATA SHARING CIRCANA - Export Txt',
+                schedules=[selected_schedule],
+                contents=Content(
+                    id=select_documencumnt.id,
+                    #id=select_dashboard.id,
+                    type=Content.Type.REPORT,
+                    personalization=Content.Properties(
+                        format_type=Content.Properties.FormatType.PLAIN_TEXT,
+                        format_mode= Content.Properties.FormatMode.ALL_PAGES,
+                        delimiter= ";"
+                    )        
+                ),
+                recipients=[selected_user.id, select_contact.id],
+                compress = False,
+                project_id= 'BBA62560462B072381509AB5E7F8B013',
+                project_name = 'DWH CDA 2.0',
+                allow_delivery_changes= False,
+                allow_personalization_changes = None,
+                allow_unsubscribe= True,
+                send_now= False,
+                owner_id = 'EFE40BC8499B61A8AB55BDBDE3342C95',
+                
+                delivery_expiration_date = None,
+                delivery_expiration_timezone= None,
+                contact_security= None,
+                space_delimiter = None,
+                email_subject= 'DATA SHARING CIRCANA - Export Txt',
+                email_message= '''Rimuovere dal file la riga di intestazioni.
+            Rimuovere le prime tre righe
+            Rinominare file CDA_ AAAA_MM.txt
+            Quindi inviare via FTP DS_IRI Circana (cartella UP).''',
+                email_send_content_as = 'data',
+                overwrite_older_version = False,
+                filename = 'DocumentoSintesi',    
+                zip_filename ='DocumentoCompresso',
+                zip_password_protect= False,
+                zip_password = None,
+
+            )
+        except Exception as e:
+            print(f"Errore durante la creazione della sottoscrizione: {e}")

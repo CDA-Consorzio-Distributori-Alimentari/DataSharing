@@ -1,5 +1,6 @@
-import pandas as pd
 
+import pandas as pd
+import sqlalchemy
 from .base_repository import BaseRepository
 
 
@@ -9,7 +10,6 @@ class SociRepository(BaseRepository):
     ID_FIELD = "TC_Soci_Codice"
 
     def _map_model(self):
-        sqlalchemy = self.db_manager._require_sqlalchemy()
         mapper_registry = self.db_manager._sqlalchemy_registry()
         metadata = sqlalchemy.MetaData()
         soci_table = sqlalchemy.Table(
@@ -50,7 +50,7 @@ class SociRepository(BaseRepository):
 
     def get_active_socio_dataframe(self, socio_code):
         try:
-            sqlalchemy = self.db_manager._require_sqlalchemy()
+            # sqlalchemy già importato sopra
             query = (
                 sqlalchemy.select(*self._selectable_columns())
                 .where(self.model.TC_Soci_Socio_Attivo == 1)

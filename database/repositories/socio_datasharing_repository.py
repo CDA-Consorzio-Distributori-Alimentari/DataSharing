@@ -1,8 +1,7 @@
-from warnings import filters
 
 import pandas as pd
+import sqlalchemy
 from datetime import datetime
-
 from .base_repository import BaseRepository
 
 
@@ -12,7 +11,6 @@ class SocioDataSharingRepository(BaseRepository):
     ID_FIELD = "TC_Soci_Codice"
 
     def _map_model(self):
-        sqlalchemy = self.db_manager._require_sqlalchemy()
         mapper_registry = self.db_manager._sqlalchemy_registry()
         metadata = sqlalchemy.MetaData()
         relation_table = sqlalchemy.Table(
@@ -71,7 +69,7 @@ class SocioDataSharingRepository(BaseRepository):
         """
 
         try:
-            sqlalchemy = self.db_manager._require_sqlalchemy()
+            # sqlalchemy già importato sopra
             query_builder = sqlalchemy.select(*self._selectable_columns())
             if socio_code is not None:
                 query_builder = query_builder.where(self.model.TC_Soci_Codice == str(socio_code).strip())

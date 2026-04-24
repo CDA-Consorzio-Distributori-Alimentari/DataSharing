@@ -1,8 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-
-class SocioDataSharingManagementWindow:
+class DataSharingSocioManagementWindow:
     COLUMNS = (
         "socio_code",
         "socio_name",

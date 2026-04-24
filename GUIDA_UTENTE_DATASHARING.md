@@ -1,17 +1,6 @@
 # Guida Operativa Utente DataSharing
 
-Questa guida e pensata per un utente non tecnico. Spiega in modo semplice come usare il programma, dove copiarlo, come avviarlo e cosa controllare alla fine.
-
 ## Cos'e il programma
-
-DataSharing e un programma Windows gia pronto all'uso.
-
-E' un programma stand alone, cioe:
-
-- non richiede installazione tecnica complessa
-- non richiede Visual Studio o Python
-- puo essere copiato in una cartella del proprio PC
-- puo essere eseguito direttamente da quella cartella
 
 Il programma serve a:
 
@@ -20,11 +9,14 @@ Il programma serve a:
 - inviare il file al destinatario configurato
 - opzionalmente inviare una mail finale di recap, se il flag dedicato e attivo
 
+Puoi creare questi flussi in tre modi diversi:
+1. partendo dal data sharing e scegliendo i soci
+2. partendo dal socio e scegliendo i data sharing
+3. tramite la modalità strategy
+
 ## Cosa viene consegnato all'utente
 
 L'utente riceve una cartella gia pronta con questi file:
-
-- `datasharing.exe`
 - `datasharing_windows.exe`
 - `config.json`
 - `GUIDA_UTENTE_DATASHARING.md`
@@ -33,10 +25,7 @@ Il file `config.json` deve rimanere nella stessa cartella degli eseguibili.
 
 ## Dove puo essere copiato
 
-Il programma puo essere usato in due modi:
-
-1. direttamente dalla cartella consegnata
-2. copiandolo sul proprio PC, per esempio sul Desktop o in Documenti
+Il programma va copiato sul tuo PC, ad esempio sul Desktop o nella cartella Documenti.
 
 Esempi di cartelle adatte:
 
@@ -61,7 +50,7 @@ In pratica il programma funziona se:
 
 Se il PC non è in dominio, oppure il programma viene lanciato con un utente non autorizzato, l'elaborazione non parte.
 
-Se non sai se il tuo utente e' autorizzato, chiedi agli Admin.
+Se non sai se il tuo utente è autorizzato, chiedi agli amministratori di sistema.
 
 ## Come capire quale file usare
 

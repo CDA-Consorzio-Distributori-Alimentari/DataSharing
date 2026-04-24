@@ -7,7 +7,7 @@ from services.data_sharing_runtime import DataSharingRuntime
 import threading
 from datetime import datetime
 from .tool_tip import ToolTip
-from .socio_data_sharing_management_window import SocioDataSharingManagementWindow
+#from .socio_datasharing_management_window import SocioDataSharingManagementWindow
 from .tabella_logging_windows import TabellaLoggingWindows
 
 
@@ -25,6 +25,7 @@ class DataSharingWindowsApp:
         self.selected_option = None
         self.available_soci = []
         self.socio_check_vars = {}
+        self.selected_soci = set()
         self.is_processing = False
 
         self.datasharing_var = tk.StringVar()
@@ -54,6 +55,8 @@ class DataSharingWindowsApp:
         self.style.configure("TLabel", background=self.normal_background)
         self.style.configure("TCheckbutton", background=self.normal_background)
         self.style.configure("TRadiobutton", background=self.normal_background)
+        self.style.configure("Red.TButton", background="#ff4d4d", foreground="white")
+    
 
     def _apply_debug_theme(self):
         background = self.debug_background if self.debug_var.get() else self.normal_background
@@ -69,6 +72,9 @@ class DataSharingWindowsApp:
             self.soci_canvas.configure(background=background)
 
     def _build_ui(self):
+        import sys
+        from .data_sharing_selector import main_selector_window
+
         container = ttk.Frame(self.root, padding=16)
         container.pack(fill="both", expand=True)
         container.columnconfigure(0, weight=1)
@@ -87,6 +93,13 @@ class DataSharingWindowsApp:
 
         header_right_frame = ttk.Frame(header_frame)
         header_right_frame.grid(row=0, column=1, sticky="e")
+
+        def close_and_return():
+            self.root.destroy()
+            main_selector_window()
+
+        btn_close = ttk.Button(header_right_frame, text="Chiudi", command=close_and_return, style="Red.TButton")
+        btn_close.pack(side="right", padx=(8, 0))
 
         self.debug_checkbutton = ttk.Checkbutton(
             header_right_frame,
@@ -109,99 +122,13 @@ class DataSharingWindowsApp:
             "Abilita o disabilita la mail di ricapitolazione verso dwh@cdaweb.it. Di default resta disattiva.",
         )
 
+
         release_label = ttk.Label(
             header_right_frame,
             textvariable=self.release_var,
             font=("Segoe UI", 10, "italic"),
         )
         release_label.pack(side="right", padx=(0, 12))
-
-        selection_frame = ttk.LabelFrame(container, text="Parametri elaborazione", padding=12)
-        selection_frame.grid(row=1, column=0, sticky="nsew")
-        selection_frame.columnconfigure(1, weight=1)
-
-        ttk.Label(selection_frame, text="Data sharing").grid(row=0, column=0, sticky="w", padx=(0, 12), pady=6)
-        self.datasharing_combo = ttk.Combobox(
-            selection_frame,
-            textvariable=self.datasharing_var,
-            state="readonly",
-        )
-        self.datasharing_combo.grid(row=0, column=1, sticky="ew", pady=6)
-        self.datasharing_combo.bind("<<ComboboxSelected>>", self._on_datasharing_changed)
-        ToolTip(self.datasharing_combo, "Scegli il data sharing. I soci abilitati vengono caricati automaticamente.")
-
-        ttk.Label(selection_frame, text="Tipo periodo").grid(row=1, column=0, sticky="w", padx=(0, 12), pady=6)
-        period_type_frame = ttk.Frame(selection_frame)
-        period_type_frame.grid(row=1, column=1, sticky="w", pady=6)
-
-        ttk.Radiobutton(
-            period_type_frame,
-            text="Anno (YYYY)",
-            variable=self.period_type_var,
-            value="year",
-            command=self._on_period_type_changed,
-        ).pack(side="left", padx=(0, 16))
-        ttk.Radiobutton(
-            period_type_frame,
-            text="Periodo (YYYYMM)",
-            variable=self.period_type_var,
-            value="month",
-            command=self._on_period_type_changed,
-        ).pack(side="left")
-        ToolTip(period_type_frame, "Scegli se elaborare un anno intero oppure un singolo periodo mensile.")
-
-        ttk.Label(selection_frame, text="Valore periodo").grid(row=2, column=0, sticky="w", padx=(0, 12), pady=6)
-        self.period_entry = ttk.Entry(selection_frame, textvariable=self.period_value_var)
-        self.period_entry.grid(row=2, column=1, sticky="ew", pady=6)
-        period_validate_command = (self.root.register(self._validate_period_on_focus_out), "%P")
-        period_invalid_command = (self.root.register(self._handle_invalid_period_focus_out),)
-        self.period_entry.configure(
-            validate="focusout",
-            validatecommand=period_validate_command,
-            invalidcommand=period_invalid_command,
-        )
-        self.period_entry.bind("<KeyRelease>", self._on_period_value_changed)
-        ToolTip(self.period_entry, "Inserisci YYYY per un anno oppure YYYYMM per un mese, in base alla selezione sopra.")
-
-        self.period_hint_label = ttk.Label(selection_frame, text="Inserisci un anno nel formato YYYY")
-        self.period_hint_label.grid(row=3, column=1, sticky="w", pady=(0, 6))
-
-        soci_label_frame = ttk.LabelFrame(selection_frame, text="Soci abilitati")
-        soci_label_frame.grid(row=4, column=0, columnspan=2, sticky="nsew", pady=8)
-        soci_label_frame.columnconfigure(0, weight=1)
-        soci_label_frame.rowconfigure(1, weight=1)
-        selection_frame.rowconfigure(4, weight=1)
-
-        soci_actions_frame = ttk.Frame(soci_label_frame)
-        soci_actions_frame.grid(row=0, column=0, sticky="ew", padx=8, pady=(8, 4))
-
-        select_all_button = ttk.Button(soci_actions_frame, text="Seleziona tutti", command=self._select_all_soci)
-        select_all_button.pack(side="left")
-        clear_all_button = ttk.Button(soci_actions_frame, text="Deseleziona tutti", command=self._clear_soci_selection)
-        clear_all_button.pack(side="left", padx=(8, 0))
-        refresh_soci_button = ttk.Button(soci_actions_frame, text="Aggiorna elenco soci", command=self._refresh_soci)
-        refresh_soci_button.pack(side="left", padx=(8, 0))
-        ttk.Label(soci_actions_frame, text="Filtro soci").pack(side="left", padx=(16, 6))
-        self.socio_filter_entry = ttk.Entry(soci_actions_frame, textvariable=self.socio_filter_var, width=32)
-        self.socio_filter_entry.pack(side="left", fill="x", expand=True)
-        self.socio_filter_entry.bind("<KeyRelease>", self._on_socio_filter_changed)
-        ToolTip(select_all_button, "Seleziona tutti i soci attualmente visibili.")
-        ToolTip(clear_all_button, "Rimuove la selezione da tutti i soci.")
-        ToolTip(refresh_soci_button, "Ricarica l'elenco dei soci abilitati dal database.")
-        ToolTip(self.socio_filter_entry, "Filtra i soci per codice o ragione sociale.")
-
-        self.soci_canvas = tk.Canvas(soci_label_frame, height=150, highlightthickness=0)
-        self.soci_canvas.grid(row=1, column=0, sticky="nsew", padx=(8, 0), pady=(0, 8))
-        ToolTip(self.soci_canvas, "Seleziona uno o più soci abilitati per il data sharing scelto.")
-
-        soci_scrollbar = ttk.Scrollbar(soci_label_frame, orient="vertical", command=self.soci_canvas.yview)
-        soci_scrollbar.grid(row=1, column=1, sticky="ns", padx=(0, 8), pady=(0, 8))
-        self.soci_canvas.configure(yscrollcommand=soci_scrollbar.set)
-
-        self.soci_frame = ttk.Frame(self.soci_canvas)
-        self.soci_window = self.soci_canvas.create_window((0, 0), window=self.soci_frame, anchor="nw")
-        self.soci_frame.bind("<Configure>", self._on_soci_frame_configure)
-        self.soci_canvas.bind("<Configure>", self._on_soci_canvas_configure)
 
         action_frame = ttk.Frame(container, padding=(0, 12, 0, 12))
         action_frame.grid(row=2, column=0, sticky="ew")
@@ -215,6 +142,7 @@ class DataSharingWindowsApp:
         self.run_button.pack(side="left")
         ToolTip(self.run_button, "Si abilita solo quando data sharing, periodo e almeno un socio sono validi.")
 
+
         self.manage_relations_button = ttk.Button(
             action_frame,
             text="Gestione abilitazioni",
@@ -225,11 +153,12 @@ class DataSharingWindowsApp:
             text="Visualizza Tabella Logging",
             command=self._open_tabella_logging_window,
         )
-
+       
 
         self.manage_relations_button.pack(side="left", padx=(8, 0))
         self.tabella_logging_button.pack(side="left", padx=(8, 0))
         
+
         ToolTip(
             self.manage_relations_button,
             "Apre la finestra di gestione delle relazioni socio-data sharing per attivare o disattivare le abilitazioni.",
@@ -238,43 +167,10 @@ class DataSharingWindowsApp:
             self.tabella_logging_button,
             "Apre la finestra della tabella di logging per visualizzare i dettagli delle elaborazioni.",
         )
-
-
-        status_frame = ttk.LabelFrame(container, text="Stato", padding=12)
-        status_frame.grid(row=3, column=0, sticky="ew")
-        ttk.Label(status_frame, textvariable=self.status_var).pack(anchor="w")
-
-        progress_frame = ttk.Frame(container)
-        progress_frame.grid(row=4, column=0, sticky="ew", pady=(4, 8))
-        progress_frame.columnconfigure(0, weight=1)
-
-        self.progress_bar = ttk.Progressbar(
-            progress_frame,
-            orient="horizontal",
-            mode="determinate",
-            maximum=100,
-            variable=self.progress_var,
-        )
-        self.progress_bar.grid(row=0, column=0, sticky="ew")
-
-        self.progress_label = ttk.Label(progress_frame, textvariable=self.progress_text_var, width=8, anchor="e")
-        self.progress_label.grid(row=0, column=1, padx=(8, 0))
-
-        output_frame = ttk.LabelFrame(container, text="Esito elaborazione", padding=12)
-        output_frame.grid(row=5, column=0, sticky="nsew")
-        output_frame.columnconfigure(0, weight=1)
-        output_frame.rowconfigure(0, weight=1)
-
-        self.output_text = tk.Text(output_frame, wrap="word", height=14, state="disabled")
-        self.output_text.grid(row=0, column=0, sticky="nsew")
-
-        output_scroll = ttk.Scrollbar(output_frame, orient="vertical", command=self.output_text.yview)
-        output_scroll.grid(row=0, column=1, sticky="ns")
-        self.output_text.configure(yscrollcommand=output_scroll.set)
-
-        self._on_period_type_changed()
-        self._render_soci_checkboxes([])
-        self._update_run_button_state()
+       
+    def _open_socio_period_datasharing_window(self):
+        from .datasharing_socio_management_window import DataSharingSocioManagementWindow
+        DataSharingSocioManagementWindow(self)
 
     def _load_datasharing_options(self):
         options = self.backend.get_sorted_options_for_current_tool()
@@ -399,9 +295,12 @@ class DataSharingWindowsApp:
         self._update_run_button_state()
 
     def _refresh_soci(self):
+        # Reset selezione soci solo su cambio data sharing o refresh
+        self.selected_soci = set()
+
         if not self.selected_option:
             self.available_soci = []
-            self._render_soci_checkboxes([])
+            self._render_soci_checkboxes()
             self.status_var.set("Seleziona un data sharing.")
             self._update_run_button_state()
             return
@@ -409,14 +308,14 @@ class DataSharingWindowsApp:
         try:
             soci_rows = self._load_enabled_soci(self.selected_option)
         except Exception as exc:
-            self._render_soci_checkboxes([])
+            self._render_soci_checkboxes()
             self.status_var.set(f"Errore caricamento soci: {exc}")
             self._set_output(f"Errore caricamento soci per {self.selected_option.code}: {exc}")
             self._update_run_button_state()
             return
 
         self.available_soci = soci_rows
-        self._render_soci_checkboxes(soci_rows)
+        self._render_soci_checkboxes()
 
         if soci_rows:
             self.status_var.set(f"Trovati {len(soci_rows)} soci abilitati per {self.selected_option.code}.")
@@ -442,34 +341,35 @@ class DataSharingWindowsApp:
         return filtered_rows
 
     def _on_socio_filter_changed(self, event=None):
-        self._render_soci_checkboxes(self._get_filtered_soci())
+        # Non azzera la selezione, mantiene self.selected_soci
+        self._render_soci_checkboxes()
         self._update_run_button_state()
 
-    def _render_soci_checkboxes(self, soci_rows):
-        previous_selection = {
-            socio_code: var.get()
-            for socio_code, var in self.socio_check_vars.items()
-        }
+    def _render_soci_checkboxes(self):
+        # Consulta sempre self.selected_soci
+        selected_soci = self.selected_soci
+
+        filtered_soci = self._get_filtered_soci()
 
         for child in self.soci_frame.winfo_children():
             child.destroy()
 
         self.socio_check_vars = {}
 
-        if not soci_rows:
+        if not filtered_soci:
             ttk.Label(self.soci_frame, text="Nessun socio disponibile.").grid(row=0, column=0, sticky="w", padx=8, pady=8)
             return
 
         column_count = 3
-        rows_per_column = max(1, math.ceil(len(soci_rows) / column_count))
+        rows_per_column = max(1, math.ceil(len(filtered_soci) / column_count))
 
         for column_index in range(column_count):
             self.soci_frame.columnconfigure(column_index, weight=1)
 
-        for index, row in enumerate(soci_rows):
+        for index, row in enumerate(filtered_soci):
             socio_code = row["code"]
             socio_label = self._format_socio_label(socio_code, row["name"])
-            var = tk.BooleanVar(value=previous_selection.get(socio_code, False))
+            var = tk.BooleanVar(value=(socio_code in selected_soci))
             var.trace_add("write", self._on_socio_selection_changed)
             self.socio_check_vars[socio_code] = var
 
@@ -484,6 +384,16 @@ class DataSharingWindowsApp:
             )
 
     def _on_socio_selection_changed(self, *args):
+        # Aggiorna solo il socio effettivamente modificato
+        if args:
+            changed_var_name = args[0]
+            for socio_code, var in self.socio_check_vars.items():
+                if var._name == changed_var_name:
+                    if socio_code in self.selected_soci:
+                        self.selected_soci.discard(socio_code)
+                    else:
+                        self.selected_soci.add(socio_code)
+                    break
         self._update_run_button_state()
 
     def _get_selected_socio_codes(self):
@@ -617,7 +527,7 @@ class DataSharingWindowsApp:
             self._refresh_soci()
         elif self.selected_option is None:
             self.available_soci = []
-            self._render_soci_checkboxes([])
+            self._render_soci_checkboxes()
 
         self._update_run_button_state()
 
@@ -941,6 +851,3 @@ class DataSharingWindowsApp:
         except Exception as exc:
             # Protezione: non stampare nulla, solo mostrare errore grafico
             messagebox.showerror("DataSharing", str(exc), parent=self.root)
-
-
-

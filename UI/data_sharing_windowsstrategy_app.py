@@ -53,7 +53,8 @@ class DataSharingWindowsStrategyApp:
             self._last_period_error = ""
             self._last_run_started_at = None
             self.management_window = None
-
+            self.options = []
+            self.option_map = {}
             self._configure_styles()
             self._build_ui()
             self._load_datasharing_options()
@@ -190,60 +191,13 @@ class DataSharingWindowsStrategyApp:
         )
         self.save_tdrpt_button.pack(side="left", padx=(8, 0))
         ToolTip(self.save_tdrpt_button, "Salva una riga in TD_RPT_SOCIO_PERIODO con stato INS per il periodo e data sharing selezionati.")
-
-        self.manage_relations_button = ttk.Button(
-            action_frame,
-            text="Gestione abilitazioni",
-            command=self._open_Datasharing_datasharing_management,
-        )
-        self.tabella_logging_button = ttk.Button(
-            action_frame,
-            text="Visualizza Tabella Logging",
-            command=self._open_tabella_logging_window,
-        )
-        self.tabella_logging_button.configure(state="disabled")
-        self.manage_relations_button.configure(state="disabled")
-        self.manage_relations_button.pack(side="left", padx=(8, 0))
-        self.tabella_logging_button.pack(side="left", padx=(8, 0))
-        ToolTip(
-            self.manage_relations_button,
-            "Apre la finestra di gestione delle relazioni Datasharing-data sharing per attivare o disattivare le abilitazioni.",
-        )
-        ToolTip(
-            self.tabella_logging_button,
-            "Apre la finestra della tabella di logging per visualizzare i dettagli delle elaborazioni.",
-        )
-
-        # Pulsante per eseguire execute_sottoscrizione
-        # self.execute_sottoscrizione_button = ttk.Button(
-        #     action_frame,
-        #     text="Esegui Sottoscrizione",
-        #     command=self._execute_sottoscrizione_button_handler
-        # )
-        # self.execute_sottoscrizione_button.pack(side="left", padx=(8, 0))
-        # ToolTip(self.execute_sottoscrizione_button, "Esegue la sottoscrizione per i parametri selezionati.")
-        # self.execute_sottoscrizione_button.configure(state="disabled")
+       
    
         status_frame = ttk.LabelFrame(container, text="Stato", padding=12)
         status_frame.grid(row=3, column=0, sticky="ew")
         ttk.Label(status_frame, textvariable=self.status_var).pack(anchor="w")
 
-        progress_frame = ttk.Frame(container)
-        progress_frame.grid(row=4, column=0, sticky="ew", pady=(4, 8))
-        progress_frame.columnconfigure(0, weight=1)
-
-        self.progress_bar = ttk.Progressbar(
-            progress_frame,
-            orient="horizontal",
-            mode="determinate",
-            maximum=100,
-            variable=self.progress_var,
-        )
-        self.progress_bar.grid(row=0, column=0, sticky="ew")
-
-        self.progress_label = ttk.Label(progress_frame, textvariable=self.progress_text_var, width=8, anchor="e")
-        self.progress_label.grid(row=0, column=1, padx=(8, 0))
-
+               
         output_frame = ttk.LabelFrame(container, text="Esito elaborazione", padding=12)
         output_frame.grid(row=5, column=0, sticky="nsew")
         output_frame.columnconfigure(0, weight=1)
@@ -258,53 +212,18 @@ class DataSharingWindowsStrategyApp:
 
         # Add a Listbox for MSTR job status output
         mstr_status_frame = ttk.LabelFrame(container, text="Stato coda MSTR", padding=12)
-        mstr_status_frame.grid(row=6, column=0, sticky="nsew")
+        mstr_status_frame.grid(row=5, column=0, sticky="nsew")
         mstr_status_frame.columnconfigure(0, weight=1)
         mstr_status_frame.rowconfigure(0, weight=1)
 
-        self.mstr_status_listbox = tk.Listbox(mstr_status_frame, height=8)
-        self.mstr_status_listbox.grid(row=0, column=0, sticky="nsew")
-        mstr_status_scroll = ttk.Scrollbar(mstr_status_frame, orient="vertical", command=self.mstr_status_listbox.yview)
-        mstr_status_scroll.grid(row=0, column=1, sticky="ns")
-        self.mstr_status_listbox.configure(yscrollcommand=mstr_status_scroll.set)
+        self.mstr_status_text = tk.Text(mstr_status_frame, wrap="word", height=10, state="disabled")
+        self.mstr_status_text.grid(row=0, column=0, sticky="nsew")
+        self.mstr_status_text.configure(yscrollcommand=output_scroll.set)
+
 
         self._on_period_type_changed()
-        self._render_entity_checkboxes([])
+        #self._render_entity_checkboxes([])
         self._update_run_button_state()
-
-    # Remove duplicate/erroneous code after _save_tdrpt_socio_periodo_ins
-        # Aggiorna il manager e il titolo finestra
-        self.strategy_manager.strategy_env = self.strategy_env_var.get()
-        self.root.title(f"DataSharing {self.backend_runtime.config.version} [{self.strategy_env_var.get()}]")
-        self.root = tk.Tk()
-        self.root.title(f"DataSharing {self.backend_runtime.config.version}")
-        self.root.geometry("1120x760")
-        self.root.minsize(960, 680)
-        self.style = ttk.Style()
-        self.normal_background = self.style.lookup("TFrame", "background") or "#f0f0f0"
-        self.debug_background = "#fff7cc"
-
-        self.selected_option = None
-        self.is_processing = False
-
-        self.datasharing_var = tk.StringVar()
-        self.period_type_var = tk.StringVar(value="year")
-        self.period_value_var = tk.StringVar()
-        self.status_var = tk.StringVar(value="Seleziona un data sharing per iniziare.")
-        self.release_var = tk.StringVar(value=f"Release {self.backend_runtime.config.version}")
-        self.debug_var = tk.BooleanVar(value=bool(self.backend_runtime.config.debug))
-        self.summary_mail_var = tk.BooleanVar(value=bool(self.backend_runtime.config.summary_mail_enabled))
-        self.progress_var = tk.DoubleVar(value=0)
-        self.progress_text_var = tk.StringVar(value="0%")
-        self._period_validation_in_progress = False
-        self._last_period_error = ""
-        self._last_run_started_at = None
-        self.management_window = None
-
-        self._configure_styles()
-        self._build_ui()
-        self._load_datasharing_options()
-        self._apply_debug_theme()
 
     def _configure_styles(self):
         self.style.configure("TFrame", background=self.normal_background)
@@ -426,13 +345,10 @@ class DataSharingWindowsStrategyApp:
 
         self.period_hint_label = ttk.Label(selection_frame, text="Inserisci un anno nel formato YYYY")
         self.period_hint_label.grid(row=3, column=1, sticky="w", pady=(0, 6))
-
-
-
+        
         action_frame = ttk.Frame(container, padding=(0, 12, 0, 12))
         action_frame.grid(row=2, column=0, sticky="ew")
-
-
+        
         self.run_button = ttk.Button(
             action_frame, 
             text="Esegui sottoscrizione", 
@@ -442,38 +358,38 @@ class DataSharingWindowsStrategyApp:
         ToolTip(self.run_button, "Si abilita solo quando data sharing, periodo e almeno un Datasharingo sono validi.")
 
         # Pulsante per salvare in TD_RPT_SOCIO_PERIODO con cod_stato='INS'
-        self.save_tdrpt_button = ttk.Button(
-            action_frame,
-            text="Salva TD_RPT_SOCIO_PERIODO (INS)",
-            command=self._save_tdrpt_socio_periodo_ins
-        )
-        self.save_tdrpt_button.pack(side="left", padx=(8, 0))
-        ToolTip(self.save_tdrpt_button, "Salva una riga in TD_RPT_SOCIO_PERIODO con stato INS per il periodo e data sharing selezionati.")
+        # self.save_tdrpt_button = ttk.Button(
+        #     action_frame,
+        #     text="Salva TD_RPT_SOCIO_PERIODO (INS)",
+        #     command=self._save_tdrpt_socio_periodo_ins
+        # )
+        # self.save_tdrpt_button.pack(side="left", padx=(8, 0))
+        # ToolTip(self.save_tdrpt_button, "Salva una riga in TD_RPT_SOCIO_PERIODO con stato INS per il periodo e data sharing selezionati.")
     
  
-        self.manage_relations_button = ttk.Button(
-            action_frame,
-            text="Gestione abilitazioni",
-            command=self._open_Datasharing_datasharing_management,
-        )
-        self.tabella_logging_button = ttk.Button(
-            action_frame,
-            text="Visualizza Tabella Logging",
-            command=self._open_tabella_logging_window,
-        )
+        # self.manage_relations_button = ttk.Button(
+        #      action_frame,
+        #      text="Gestione abilitazioni",
+        #      command=self._crea_new_subscription,
+        # )
+        # self.tabella_logging_button = ttk.Button(
+        #     action_frame,
+        #     text="Visualizza Tabella Logging",
+        #     command=self._open_tabella_logging_window,
+        # )
 
 
-        self.manage_relations_button.pack(side="left", padx=(8, 0))
-        self.tabella_logging_button.pack(side="left", padx=(8, 0))
+        #self.manage_relations_button.pack(side="left", padx=(8, 0))
+        # self.tabella_logging_button.pack(side="left", padx=(8, 0))
         
         ToolTip(
-            self.manage_relations_button,
-            "Apre la finestra di gestione delle relazioni Datasharing-data sharing per attivare o disattivare le abilitazioni.",
+             self.manage_relations_button,
+             "crea una nuova sottoscrizione",
         )
-        ToolTip(
-            self.tabella_logging_button,
-            "Apre la finestra della tabella di logging per visualizzare i dettagli delle elaborazioni.",
-        )
+        # ToolTip(
+        #     self.tabella_logging_button,
+        #     "Apre la finestra della tabella di logging per visualizzare i dettagli delle elaborazioni.",
+        # )
 
 
         status_frame = ttk.LabelFrame(container, text="Stato", padding=12)
@@ -522,25 +438,29 @@ class DataSharingWindowsStrategyApp:
         self.mstr_status_listbox.configure(yscrollcommand=mstr_status_scroll.set)
 
         self._on_period_type_changed()
-        self._render_entity_checkboxes([])
+        #self._render_entity_checkboxes([])
         self._update_run_button_state()
 
     def _load_datasharing_options(self):
         # Carica solo i data sharing generali (is_general=1) attivi
         try:
-            repo = SottoscrizioniRptRepository(self.backend_runtime.dso_manager.db_manager)
-            df = repo.get_dataframe(is_general=1)
-            options = []
-            for _, row in df.iterrows():
-                option = type('Option', (), {})()
-                option.code = row['COD_SOTTOSCRIZIONE']
-                option.name = row['NOM_SOTTOSCRIZIONE']
-                option.file_type = row.get('COD_TIPO', '')
-                options.append(option)
-            self.option_map = {
-                self._format_option_label(option): option
-                for option in options
-            }
+            #repo = SottoscrizioniRptRepository(self.backend_runtime.dso_manager.db_manager)
+            if self.options is  None or len(self.options) == 0:
+                df = self.strategy_manager.Sottoscrizioni.get_dataframe(is_general=1)
+     
+                self.options = []
+                for _, row in df.iterrows():
+                    self.option = type('Option', (), {})()
+                    self.option.cod_sottoscrizione = row['COD_SOTTOSCRIZIONE']
+                    self.option.name = row['NOM_SOTTOSCRIZIONE']
+                    self.option.cod_rpt = row['COD_RPT']
+                    self.option.nom_rpt = row['NOM_RPT']
+                    self.option.cod_type = row['COD_TIPO']
+                    self.options.append(self.option)
+                self.option_map = {
+                    self._format_option_label(option): option
+                    for option in self.options
+                }
             labels = list(self.option_map.keys())
             self.datasharing_combo["values"] = labels
             self.datasharing_var.set("")
@@ -606,7 +526,7 @@ class DataSharingWindowsStrategyApp:
 
     @staticmethod
     def _format_option_label(option):
-        return f"{option.code} - {option.name} ({option.file_type})"
+        return f"{option.cod_sottoscrizione} - {option.name} ({option.cod_type})"
 
     @staticmethod
     def _format_entity_label(entity_code, entity_name):
@@ -700,26 +620,8 @@ class DataSharingWindowsStrategyApp:
     def _on_datasharing_changed(self, event=None):
         selected_label = self.datasharing_var.get()
         self.selected_option = self.option_map.get(selected_label)
-        self._refresh_entities()
+        #self._refresh_entities()
         self._update_run_button_state()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     def _is_period_ready(self):
         value = self.period_value_var.get().strip()
@@ -744,6 +646,12 @@ class DataSharingWindowsStrategyApp:
             self.run_button.pack_forget()
             self.run_button.pack(side="left")
             self.run_button.configure(style="Red.TButton")
+            
+            # self.save_tdrpt_button.configure(state="disabled")
+            # self.save_tdrpt_button.pack_forget()
+            # self.save_tdrpt_button.pack(side="left")
+            # self.save_tdrpt_button.configure(style="Red.TButton")
+
             #self.execute_sottoscrizione_button.configure(state="disabled")
             if prev_state != "processing":
                 self.status_var.set("Elaborazione in corso: pulsante disabilitato.")
@@ -761,12 +669,18 @@ class DataSharingWindowsStrategyApp:
             self.run_button.pack_forget()
             self.run_button.pack(side="left")
             self.run_button.configure(state="normal", style="TButton")
+                       
+            # self.save_tdrpt_button.pack_forget()
+            # self.save_tdrpt_button.pack(side="left")
+            # self.save_tdrpt_button.configure(state="normal", style="TButton")
+
             #self.execute_sottoscrizione_button.configure(state="normal")
             if prev_state != "normal":
                 self.status_var.set("Pronto per avviare l'elaborazione.")
             self._prev_run_button_state = "normal"
         else:
             self.run_button.pack_forget()
+            # self.save_tdrpt_button.pack_forget()
             #self.execute_sottoscrizione_button.configure(state="disabled")
             self._prev_run_button_state = "hidden"
             if len(missing) == 1:
@@ -836,11 +750,11 @@ class DataSharingWindowsStrategyApp:
             self.datasharing_var.set("")
             self.selected_option = None
 
-        if self.selected_option and self.selected_option.code == str(datasharing_code).strip():
-            self._refresh_entities()
-        elif self.selected_option is None:
-            self.available_entities = []
-            self._render_entity_checkboxes([])
+        # if self.selected_option and self.selected_option.code == str(datasharing_code).strip():
+        #     self._refresh_entities()
+        # elif self.selected_option is None:
+        #     self.available_entities = []
+        #     self._render_entity_checkboxes([])
 
         self._update_run_button_state()
 
@@ -974,119 +888,6 @@ class DataSharingWindowsStrategyApp:
 
         self._update_run_button_state()
 
-    def _run_export(self):
-        try:
-            datasharing_codes, period_value = self._validate_selection()
-        except ValueError as exc:
-            messagebox.showerror("Validazione", str(exc), parent=self.root)
-            return
-
-        option = self.selected_option
-        self._last_run_started_at = datetime.now()
-        self._set_running_state(True)
-        self.progress_var.set(0)
-        self.progress_text_var.set("0%")
-        self.status_var.set(
-            f"Elaborazione in corso per {option.code}, Datasharing selezionati: {len(datasharing_codes)}, periodo {period_value}."
-        )
-        self._set_output(
-            "ESECUZIONE STEP BY STEP\n"
-            + "=" * 60
-            + f"\nData sharing: {option.code} - {option.name}"
-            + f"\nPeriodo richiesto: {period_value}"
-            + f"\nDatasharing selezionati: {len(datasharing_codes)}\n\n"
-        )
-
-        worker = threading.Thread(
-            target=self._run_export_worker,
-            args=(datasharing_codes, period_value, option),
-            daemon=True,
-        )
-        worker.start()
-
-    def _run_export_worker(self, datasharing_codes, period_value, option):
-        try:
-            periods = self.backend_runtime.expand_periods(period_value)
-            send_summary_mail = len(periods) == 1
-            total_steps = max(1, len(datasharing_codes) * max(1, len(periods)))
-            completed_steps = 0
-            self.root.after(
-                0,
-                lambda: self._append_output(
-                    f"Periodi da elaborare: {', '.join(periods)}\n" if periods else "Nessun periodo da elaborare.\n"
-                ),
-            )
-            results = []
-            for datasharing_index, datasharing_code in enumerate(datasharing_codes, start=1):
-                self.root.after(
-                    0,
-                    lambda s=datasharing_code, idx=datasharing_index, total=len(datasharing_codes): self._append_output(
-                        f"\n[{idx}/{total}] Avvio Datasharing {s}\n"
-                    ),
-                )
-
-                datasharing_period_results = []
-                for period_index, single_period in enumerate(periods, start=1):
-                    self.root.after(
-                        0,
-                        lambda s=datasharing_code, p=single_period, idx=period_index, total=len(periods): self._append_output(
-                            f"  - Periodo {idx}/{total}: {p} in elaborazione...\n"
-                        ),
-                    )
-                    result = self.backend_runtime.dso_manager.main_process_data(
-                        datasharing_code,
-                        single_period,
-                        option,
-                        send_summary_mail=send_summary_mail,
-                    )
-                    datasharing_period_results.append(result)
-                    completed_steps += 1
-                    self.root.after(
-                        0,
-                        lambda s=datasharing_code, p=single_period, r=result, done=completed_steps, total=total_steps: self._on_period_step_completed(
-                            s,
-                            p,
-                            r,
-                            done,
-                            total,
-                        ),
-                    )
-
-                aggregated_result = self.backend_runtime.build_aggregated_result(datasharing_code, periods, option, datasharing_period_results)
-                if len(periods) > 1:
-                    Datasharing_data = self.backend_runtime.dso_manager.verify_Datasharing(datasharing_code, option.code)
-                    self.backend_runtime.dso_manager.send_aggregated_summary_mail(
-                        datasharing_code,
-                        periods,
-                        option,
-                        Datasharing_data,
-                        aggregated_result,
-                        datasharing_period_results,
-                    )
-                results.append((datasharing_code, aggregated_result))
-                self.root.after(
-                    0,
-                    lambda s=datasharing_code, r=aggregated_result: self._append_output(
-                        f"  Completato datasharing {s}: {'OK' if r.get('success') else 'KO'}"
-                        + (f" | Output: {r.get('output_file')}" if r.get('output_file') else "")
-                        + "\n"
-                    ),
-                )
-            self.root.after(0, lambda: self._handle_result(results, period_value, option))
-        except Exception as exc:
-            self.root.after(0, lambda: self._handle_error(exc))
-
-    def _on_period_step_completed(self, datasharing_code, single_period, result, completed_steps, total_steps):
-        self._append_output(
-            f"    Esito periodo {single_period}: {'OK' if result.get('success') else 'KO'}"
-            + (f" | File: {result.get('output_file')}" if result.get('output_file') else "")
-            + "\n"
-        )
-        self._update_progress(
-            completed_steps,
-            total_steps,
-            f"Avanzamento {completed_steps}/{total_steps} - datasharing {datasharing_code}, periodo {single_period}",
-        )
 
     def _handle_result(self, results, period_value, option):
         self._set_running_state(False)
@@ -1110,8 +911,8 @@ class DataSharingWindowsStrategyApp:
         lines = [
             "RIEPILOGO ELABORAZIONE",
             "=" * 60,
-            f"Data sharing: {option.code} - {option.name}",
-            f"Tipo file: {option.file_type}",
+            f"Data sharing: {option.cod_sottoscrizione} - {option.name}",
+            f"Tipo file: {option.cod_type}",
             f"Tipo periodo richiesto: {requested_period_type}",
             f"Periodo richiesto: {period_value}",
             f"Esito: {'OK' if success else 'KO'}",
@@ -1166,71 +967,72 @@ class DataSharingWindowsStrategyApp:
             messagebox.showerror("DataSharing", str(exc), parent=self.root)
     
 
-    def _render_entity_checkboxes(self, entity_rows):
-        previous_selection = getattr(self, 'entity_check_vars', {})
-        previous_selection = {entity_code: var.get() for entity_code, var in previous_selection.items()}
+    # def _render_entity_checkboxes(self, entity_rows):
+    #     previous_selection = getattr(self, 'entity_check_vars', {})
+    #     previous_selection = {entity_code: var.get() for entity_code, var in previous_selection.items()}
 
-        if not hasattr(self, 'entity_frame'):
-            self.entity_frame = ttk.Frame(self.root)
-            self.entity_frame.pack()
+    #     if not hasattr(self, 'entity_frame'):
+    #         self.entity_frame = ttk.Frame(self.root)
+    #         self.entity_frame.pack()
 
-        for child in self.entity_frame.winfo_children():
-            child.destroy()
+    #     for child in self.entity_frame.winfo_children():
+    #         child.destroy()
 
-        self.entity_check_vars = {}
+    #     self.entity_check_vars = {}
 
-        if not entity_rows:
-            ttk.Label(self.entity_frame, text="Nessuna entità disponibile.").grid(row=0, column=0, sticky="w", padx=8, pady=8)
-            return
+    #     if not entity_rows:
+    #         ttk.Label(self.entity_frame, text="Nessuna entità disponibile.").grid(row=0, column=0, sticky="w", padx=8, pady=8)
+    #         return
 
-        column_count = 3
-        import math
-        rows_per_column = max(1, math.ceil(len(entity_rows) / column_count))
+    #     column_count = 3
+    #     import math
+    #     rows_per_column = max(1, math.ceil(len(entity_rows) / column_count))
 
-        for column_index in range(column_count):
-            self.entity_frame.columnconfigure(column_index, weight=1)
+    #     for column_index in range(column_count):
+    #         self.entity_frame.columnconfigure(column_index, weight=1)
 
-        for index, row in enumerate(entity_rows):
-            entity_code = row["code"]
-            entity_label = self._format_entity_label(entity_code, row["name"])
-            var = tk.BooleanVar(value=previous_selection.get(entity_code, False))
-            var.trace_add("write", self._on_entity_selection_changed)
-            self.entity_check_vars[entity_code] = var
+    #     for index, row in enumerate(entity_rows):
+    #         entity_code = row["code"]
+    #         entity_label = self._format_entity_label(entity_code, row["name"])
+    #         var = tk.BooleanVar(value=previous_selection.get(entity_code, False))
+    #         var.trace_add("write", self._on_entity_selection_changed)
+    #         self.entity_check_vars[entity_code] = var
 
-            row_index = index % rows_per_column
-            column_index = index // rows_per_column
-            ttk.Checkbutton(self.entity_frame, text=entity_label, variable=var).grid(
-                row=row_index,
-                column=column_index,
-                sticky="w",
-                padx=8,
-                pady=2
-            )
-    def _refresh_entities(self):
-        if not self.selected_option:
-            self.available_entities = []
-            self._render_entity_checkboxes([])
-            self.status_var.set("Seleziona un data sharing.")
-            self._update_run_button_state()
-            return
+    #         row_index = index % rows_per_column
+    #         column_index = index // rows_per_column
+    #         ttk.Checkbutton(self.entity_frame, text=entity_label, variable=var).grid(
+    #             row=row_index,
+    #             column=column_index,
+    #             sticky="w",
+    #             padx=8,
+    #             pady=2
+    #         )
 
-        try:
-            entity_rows = self._load_enabled_entities(self.selected_option)
-        except Exception as exc:
-            self._render_entity_checkboxes([])
-            self.status_var.set(f"Errore caricamento entità: {exc}")
-            self._set_output(f"Errore caricamento entità per {self.selected_option.code}: {exc}")
-            self._update_run_button_state()
-            return
+    # def _refresh_entities(self):
+    #     if not self.selected_option:
+    #         self.available_entities = []
+    #         self._render_entity_checkboxes([])
+    #         self.status_var.set("Seleziona un data sharing.")
+    #         self._update_run_button_state()
+    #         return
 
-        self.available_entities = entity_rows
-        self._render_entity_checkboxes(entity_rows)
+    #     try:
+    #         entity_rows = self._load_enabled_entities(self.selected_option)
+    #     except Exception as exc:
+    #         self._render_entity_checkboxes([])
+    #         self.status_var.set(f"Errore caricamento entità: {exc}")
+    #         self._set_output(f"Errore caricamento entità per {self.selected_option.code}: {exc}")
+    #         self._update_run_button_state()
+    #         return
 
-        if entity_rows:
-            self.status_var.set(f"Trovate {len(entity_rows)} entità abilitate per {self.selected_option.code}.")
-        else:
-            self.status_var.set(f"Nessuna entità abilitata per {self.selected_option.code}.")
-        self._update_run_button_state()
+    #     self.available_entities = entity_rows
+    #     self._render_entity_checkboxes(entity_rows)
+
+    #     if entity_rows:
+    #         self.status_var.set(f"Trovate {len(entity_rows)} entità abilitate per {self.selected_option.code}.")
+    #     else:
+    #         self.status_var.set(f"Nessuna entità abilitata per {self.selected_option.code}.")
+    #     self._update_run_button_state()
 
     def _load_enabled_entities(self, option):
         return self.strategy_manager.get_enabled_entities(option)
@@ -1250,15 +1052,19 @@ class DataSharingWindowsStrategyApp:
             # Parametri fittizi per esempio: id_socio=999, cod_report=selected_option.code
             # In produzione, recuperare id_socio e cod_report reali secondo la logica applicativa
             id_socio = 999
-            cod_report = selected_option.code
-            cod_sottoscrizione = selected_option.code
+            cod_report = selected_option.cod_rpt
+            cod_sottoscrizione = selected_option.cod_sottoscrizione
+            cod_tipo = selected_option.cod_type 
+            name = selected_option.name
             
-            repo = TdRptSocioPeriodoRepository(self.backend_runtime.dso_manager.db_manager)
-            repo.inserisci_TD_RPT_SOCIO_PERIODO(
+            
+            self.strategy_manager.execute_sottoscrizione(
                 id_socio=id_socio,
+                name=name,
                 num_periodo=int(periodo),
                 cod_sottoscrizione=cod_sottoscrizione,
                 cod_report=cod_report,
+                cod_tipo=cod_tipo,
                 cod_stato='INS'
             )
             messagebox.showinfo("Salvataggio", "Riga salvata in TD_RPT_SOCIO_PERIODO con stato INS.", parent=self.root)
@@ -1270,7 +1076,7 @@ class DataSharingWindowsStrategyApp:
         Callback per il pulsante Esegui Sottoscrizione: raccoglie i parametri dalla UI e chiama execute_sottoscrizione.
         """
         try:
-            # Recupera parametri dalla UI
+           
            # Recupera parametri da UI
             selected_label = self.datasharing_var.get()
             selected_option = self.option_map.get(selected_label)
@@ -1283,21 +1089,35 @@ class DataSharingWindowsStrategyApp:
                 return
             # Parametri fittizi per esempio: id_socio=999, cod_report=selected_option.code
             # In produzione, recuperare id_socio e cod_report reali secondo la logica applicativa
+           
             id_socio = 999
+            cod_report = selected_option.cod_rpt
+            cod_sottoscrizione = selected_option.cod_sottoscrizione
+            cod_tipo = selected_option.cod_type 
+            name = selected_option.name
             
-            cod_report = selected_option.code
-            cod_sottoscrizione = selected_option.code
-            
-            mysubscription_type = SubscriptionType.EMAIL
+            if cod_tipo is None:
+                messagebox.showerror("Errore", f"Tipo non trovato per la sottoscrizione {name}.", parent=self.root)
+                return
+            if "MAIL" in cod_tipo.upper():
+                mysubscription_type = SubscriptionType.EMAIL
+            elif "FTP" in cod_tipo.upper():
+                mysubscription_type = SubscriptionType.FTP
             # Esegui
             self.strategy_manager.execute_sottoscrizione(
                 cod_sottoscrizione=cod_sottoscrizione,
+                name=name,
                 cod_rpt=cod_report,
                 cod_socio=id_socio,
                 periodo=periodo,
                 mysubscription_type=mysubscription_type
             )
-            messagebox.showinfo("Esecuzione sottoscrizione", f"Sottoscrizione avviata per socio {cod_socio}, periodo {periodo}.", parent=self.root)
+            messagebox.showinfo("Esecuzione sottoscrizione", f"Sottoscrizione avviata per sottoscrizione {name} periodo {periodo}.", parent=self.root)
         except Exception as exc:
-            messagebox.showerror("Errore esecuzione sottoscrizione", str(exc), parent=self.root)
+            messagebox.showerror(f"Errore esecuzione sottoscrizione", str(exc), parent=self.root)
 
+    # def _crea_new_subscription(self):
+    #     try:
+    #         self.strategy_manager.ricrea_sottoscrizione()
+    #     except Exception as exc:
+    #         messagebox.showerror("Errore creazione sottoscrizione", str(exc), parent=self.root)

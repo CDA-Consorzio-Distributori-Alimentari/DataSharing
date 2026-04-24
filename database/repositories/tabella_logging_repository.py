@@ -8,6 +8,7 @@ class TabellaLoggingRepository(BaseRepository):
     DEFAULT_TABLE_SCHEMA = "dbo"
     COLUMN_MAPPING = {
         "cod_socio": "COD_SOCIO",
+        "socio_ragione_sociale": "TC_Soci_Ragione_Sociale",
         "cod_datasharing": "COD_DATASHARING",
         "num_periodo": "NUM_PERIODO",
         "tms_invio": "TMS_INVIO",
@@ -49,6 +50,7 @@ class TabellaLoggingRepository(BaseRepository):
         tms_update = self._truncate_to_minute(values.get("tms_update"))
         return self.add({
             self.column_mapping["cod_socio"]: values.get("cod_socio"),
+            self.column_mapping["socio_ragione_sociale"]: values.get("socio_ragione_sociale"),
             self.column_mapping["cod_datasharing"]: values.get("cod_datasharing"),
             self.column_mapping["num_periodo"]: values.get("num_periodo"),
             self.column_mapping["tms_invio"]: tms_invio,
@@ -72,6 +74,7 @@ class TabellaLoggingRepository(BaseRepository):
         existing_entry = self.get_first_by_filters(filters)
         payload = {
             self.column_mapping["cod_socio"]: values.get("cod_socio"),
+            self.column_mapping["socio_ragione_sociale"]: values.get("socio_ragione_sociale"),
             self.column_mapping["cod_datasharing"]: values.get("cod_datasharing"),
             self.column_mapping["num_periodo"]: values.get("num_periodo"),
             self.column_mapping["tms_invio"]: tms_invio,

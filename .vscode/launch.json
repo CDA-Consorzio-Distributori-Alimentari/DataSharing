@@ -4,26 +4,25 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-    
         
-        
-        
+
         {
-            "name": "Python:load logging",
+            "name": "Python:load main_windows (venv311)",
             "type": "debugpy",
             "request": "launch",
-            "python": "C:\\Program Files\\Python313\\python.exe",
-            "program": "main_load_log.py",
+            "python": "${workspaceFolder}\\venv311\\Scripts\\python.exe",
+            "program": "main_windows.py",
             "args": [""],
             "console": "integratedTerminal"
         },
         {
-            "name": "Python: Windows",
+            "name": "Python: main_windows (sistema)",
             "type": "debugpy",
             "request": "launch",
-            "python": "C:\\Program Files\\Python313\\python.exe",
-            "program": "main_windows.py",            
+            "python": "python",
+            "program": "main_windows.py",
             "console": "integratedTerminal"
-        }
+        },
+        
     ]
 }

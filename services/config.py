@@ -2,6 +2,8 @@ import json
 import logging
 from pathlib import Path
 import sys
+from tkinter import messagebox
+
 
 from services.app_metadata import APP_NAME, APP_VERSION, COMPANY_NAME, FILE_DESCRIPTION, PRODUCT_NAME
 from services.config_loader import load_merged_config
@@ -181,7 +183,24 @@ class Config:
         return candidate.resolve(strict=False)
 
     def _ensure_directory(self, directory_path):
-        Path(directory_path).mkdir(parents=True, exist_ok=True)
+        try:
+            Path(directory_path).mkdir(parents=True, exist_ok=True)
+        except FileNotFoundError as e:
+            msg = f"Impossibile creare la cartella '{directory_path}': {e}"
+            logging.error("[CONFIG] " + msg)
+            if messagebox:
+                try:
+                    messagebox.showerror("Errore cartella di rete", msg)
+                except Exception:
+                    pass
+        except Exception as e:
+            msg = f"Errore generico nella creazione della cartella '{directory_path}': {e}"
+            logging.error("[CONFIG] " + msg)
+            if messagebox:
+                try:
+                    messagebox.showerror("Errore cartella di rete", msg)
+                except Exception:
+                    pass
 
     def _ensure_artifact_structure(self, config_data):
         self._ensure_directory(self._artifacts_root_path)
